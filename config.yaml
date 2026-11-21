@@ -5,6 +5,10 @@
 plataformas: [PC, PlayStation, Xbox, Nintendo]
 incluir_gerais: true
 
+# Horário do resumo automático no modo servidor (python -m gamebot --escutar),
+# no fuso de Brasília. No GitHub Actions quem manda é o cron do workflow.
+hora_diaria: "08:17"
+
 # Quantos itens cada resumo traz, no máximo
 max_noticias: 8
 max_promocoes: 6

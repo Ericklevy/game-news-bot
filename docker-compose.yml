@@ -1,7 +1,25 @@
 services:
+  # Modo servidor (Oracle Cloud ou qualquer VPS): fica ligado, responde /agora
+  # e manda o resumo diário sozinho. Suba com: docker compose up -d --build
+  servidor:
+    build: .
+    command: ["--escutar"]
+    env_file: .env
+    environment:
+      - TZ=America/Sao_Paulo
+    volumes:
+      - ./data:/app/data          # histórico do que já foi enviado
+      - ./config.yaml:/app/config.yaml:ro
+    restart: unless-stopped       # volta sozinho se cair ou se a máquina reiniciar
+    logging:
+      driver: json-file
+      options: { max-size: "5m", max-file: "3" }
+
+  # Execução única (teste): docker compose run --rm bot --dry-run
   bot:
     build: .
     env_file: .env
     volumes:
-      - ./data:/app/data          # guarda o histórico do que já foi enviado
+      - ./data:/app/data
       - ./config.yaml:/app/config.yaml:ro
+    profiles: ["manual"]

@@ -58,6 +58,18 @@ Cada título é um link. Os ícones mostram a plataforma: 🖥️ PC, 🎮 PlayS
 - **Tolerante a falhas:** se um site ou a API de promoções cair, o resumo sai com o que estiver disponível.
 - **Segredos fora do código:** o token do Telegram vem de variável de ambiente e nunca aparece nos logs, nem em mensagens de erro.
 
+## Comandos no Telegram
+
+No modo servidor (`python -m gamebot --escutar`), o bot fica ligado e responde:
+
+| Comando | O que faz |
+|---|---|
+| `/agora` | Busca e envia as novidades na hora |
+| `/status` | Mostra quando foi o último resumo |
+| `/ajuda` | Lista os comandos |
+
+Só o chat configurado em `TELEGRAM_CHAT_ID` pode usar os comandos, para ninguém gastar a sua cota de IA. O passo a passo para deixar o bot ligado 24 horas de graça está em [docs/oracle-cloud.md](docs/oracle-cloud.md).
+
 ## Configuração
 
 Tudo fica no [`config.yaml`](config.yaml): plataformas, quantidade de itens, palavras bloqueadas, desconto mínimo das promoções e a lista de feeds. Para acrescentar um site, basta adicionar uma linha com o nome e a URL do RSS.
@@ -82,8 +94,8 @@ python -m gamebot               # envia de verdade
 Ou com Docker:
 
 ```bash
-docker compose run --rm bot --dry-run
-docker compose run --rm bot
+docker compose run --rm bot --dry-run   # uma execução de teste
+docker compose up -d --build            # modo servidor, ligado 24 horas
 ```
 
 ### 3. Receber todo dia, de graça, com GitHub Actions
@@ -100,7 +112,7 @@ pip install -r requirements-dev.txt
 pytest -q
 ```
 
-São 31 testes, que rodam sem internet, usando feeds e respostas de API salvos em `tests/fixtures`. Eles cobrem a detecção de plataforma, a junção de notícias repetidas, os filtros, as promoções (inclusive com a API fora do ar), a tradução (troca de provedor, resposta incompleta, nenhuma chave e chave fora dos logs), a formatação e a divisão da mensagem, o envio com erro e o fluxo completo sem reenviar no dia seguinte. O CI roda tudo a cada push.
+São 41 testes, que rodam sem internet, usando feeds e respostas de API salvos em `tests/fixtures`. Eles cobrem a detecção de plataforma, a junção de notícias repetidas, os filtros, as promoções (inclusive com a API fora do ar), a tradução (troca de provedor, resposta incompleta, nenhuma chave e chave fora dos logs), a formatação e a divisão da mensagem, o envio com erro o fluxo completo sem reenviar no dia seguinte e o modo servidor (comandos, chat não autorizado, horário do resumo diário e reinício sem repetir o resumo). O CI roda tudo a cada push.
 
 ## Próximos passos
 
@@ -120,7 +132,8 @@ gamebot/
 ├── banco.py         histórico em SQLite
 ├── resumo.py        monta e divide a mensagem
 ├── ia.py            tradução com OpenRouter, Groq, Gemini ou SambaNova
-├── telegram.py      envio pela Bot API
+├── escuta.py        modo servidor: comandos e resumo diário
+├── telegram.py      envio e leitura de mensagens pela Bot API
 └── sources/
     ├── rss.py       leitura dos feeds
     └── promocoes.py API da CheapShark

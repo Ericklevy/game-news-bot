@@ -35,3 +35,18 @@ def enviar(token: str, chat_id: str, texto: str, sessao: requests.Session | None
         time.sleep(0.5)  # respeita o limite de mensagens por segundo
     log.info("Telegram: %d mensagem(ns) enviada(s)", enviadas)
     return enviadas
+
+
+def atualizacoes(token: str, offset: int | None, espera: int = 50,
+                 sessao: requests.Session | None = None) -> list[dict]:
+    """Busca mensagens novas por long polling (a conexão fica aberta até `espera` segundos)."""
+    sessao = sessao or requests.Session()
+    params = {"timeout": espera, "allowed_updates": '["message"]'}
+    if offset is not None:
+        params["offset"] = offset
+    resp = sessao.get(API.format(token=token).replace("sendMessage", "getUpdates"),
+                      params=params, timeout=espera + 15)
+    corpo = resp.json() if resp.headers.get("content-type", "").startswith("application/json") else {}
+    if not corpo.get("ok"):
+        raise ErroTelegram(f"getUpdates falhou ({resp.status_code}): {corpo.get('description', 'sem detalhe')}")
+    return corpo.get("result", [])

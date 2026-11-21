@@ -26,6 +26,7 @@ class Config:
     max_por_fonte: int = 3
     plataforma_por_feed: dict[str, str] = field(default_factory=dict)
     ia: dict = field(default_factory=dict)
+    hora_diaria: str = "08:17"
 
 
 def carregar(caminho: str | Path = "config.yaml") -> Config:
@@ -45,6 +46,7 @@ def carregar(caminho: str | Path = "config.yaml") -> Config:
         plataforma_por_feed=plataforma_por_feed,
         max_por_fonte=int(dados.get("max_por_fonte", 3)),
         ia=dados.get("ia") or {},
+        hora_diaria=str(dados.get("hora_diaria", "08:17")),
         plataformas=set(dados.get("plataformas") or []),
         incluir_gerais=bool(dados.get("incluir_gerais", True)),
         max_noticias=int(dados.get("max_noticias", 8)),

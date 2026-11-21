@@ -68,14 +68,43 @@ def executar(cfg: Config, dry_run: bool = False, agora: datetime | None = None) 
         banco.fechar()
 
 
+def escutar(cfg: Config) -> None:
+    from datetime import time as hora_do_dia
+
+    from gamebot.escuta import Escuta
+
+    if not cfg.telegram_token or not cfg.telegram_chat_id:
+        raise SystemExit("Defina TELEGRAM_TOKEN e TELEGRAM_CHAT_ID.")
+    from pathlib import Path
+
+    h, m = (int(x) for x in cfg.hora_diaria.split(":"))
+    marca = Path(cfg.banco).with_name("ultimo_diario.txt")
+    marca.parent.mkdir(parents=True, exist_ok=True)
+    Escuta(
+        ultimo_diario=marca.read_text().strip() if marca.exists() else None,
+        salvar_diario=marca.write_text,
+        chat_autorizado=cfg.telegram_chat_id,
+        buscar=lambda offset: telegram.atualizacoes(cfg.telegram_token, offset),
+        responder=lambda chat, texto: telegram.enviar(cfg.telegram_token, chat, texto),
+        rodar_resumo=lambda: executar(cfg),
+        hora_diaria=hora_do_dia(h, m),
+    ).rodar()
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="Resumo diário de notícias e promoções de games no Telegram.")
     parser.add_argument("--config", default="config.yaml")
     parser.add_argument("--dry-run", action="store_true", help="mostra o resumo no terminal sem enviar")
+    parser.add_argument("--escutar", action="store_true",
+                        help="fica ligado respondendo comandos e manda o resumo diário (modo servidor)")
     args = parser.parse_args(argv)
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
     try:
-        executar(carregar(args.config), dry_run=args.dry_run)
+        cfg = carregar(args.config)
+        if args.escutar:
+            escutar(cfg)
+            return 0
+        executar(cfg, dry_run=args.dry_run)
     except telegram.ErroTelegram as erro:
         log.error("%s", erro)
         return 1
