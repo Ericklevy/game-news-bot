@@ -38,7 +38,7 @@ def montar(noticias: list[Noticia], promocoes: list[Promocao], dia: date | None 
             nota = f" · Metacritic {p.nota_metacritic}" if p.nota_metacritic else ""
             partes.append(
                 f"<a href=\"{escape(p.link, quote=True)}\">{escape(p.jogo)}</a>{'' if p.gratis else f' · -{p.desconto}%'}\n"
-                f"{preco} na {escape(p.loja)}{nota}"
+                f"{preco}{'' if p.loja == 'Loja' else ' na ' + escape(p.loja)}{nota}"
             )
 
     if not noticias and not promocoes:
