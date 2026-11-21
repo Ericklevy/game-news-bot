@@ -1,0 +1,6 @@
+[
+  {"title": "Hades", "storeID": "1", "dealID": "abc", "normalPrice": "24.99", "salePrice": "6.24", "metacriticScore": "93"},
+  {"title": "Pequena Oferta", "storeID": "1", "dealID": "def", "normalPrice": "10.00", "salePrice": "8.00", "metacriticScore": "80"},
+  {"title": "Jogo Grátis", "storeID": "25", "dealID": "ghi", "normalPrice": "19.99", "salePrice": "0.00", "metacriticScore": "0"},
+  {"title": "Quebrado", "storeID": "1"}
+]

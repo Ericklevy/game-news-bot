@@ -1,0 +1,117 @@
+# 🕹️ Game News Bot
+
+Bot que monta todo dia um **resumo de notícias e promoções de games** e envia no **Telegram**. Ele lê os principais sites de games, separa por plataforma (PC, PlayStation, Xbox e Nintendo), junta a mesma notícia publicada em sites diferentes, busca as melhores promoções de PC e nunca manda a mesma coisa duas vezes.
+
+![Python](https://img.shields.io/badge/Python-3.12-3776AB?style=flat-square&logo=python&logoColor=white)
+![Telegram](https://img.shields.io/badge/Telegram-Bot%20API-26A5E4?style=flat-square&logo=telegram&logoColor=white)
+![GitHub Actions](https://img.shields.io/badge/GitHub%20Actions-agendado-2088FF?style=flat-square&logo=githubactions&logoColor=white)
+![Docker](https://img.shields.io/badge/Docker-pronto-2496ED?style=flat-square&logo=docker&logoColor=white)
+
+## Como fica a mensagem
+
+```
+🕹️ Resumo gamer · 21/11/2026
+
+📰 Notícias
+🍄 Nintendo announces new Zelda game for Switch 2 — GameSpot
+🎮 PS5 Pro gets a price cut in Brazil — IGN
+🟩 Xbox Game Pass adds five games in December — GameSpot
+🌐 Game industry layoffs hit another studio — IGN
+
+💸 Promoções no PC
+Hades · -75% — US$ 6.24 (era US$ 24.99) na Steam · Metacritic 93
+Jogo Grátis — GRÁTIS na Epic Games Store
+```
+
+Cada título é um link. Os ícones mostram a plataforma: 🖥️ PC, 🎮 PlayStation, 🟩 Xbox, 🍄 Nintendo e 🌐 para notícias gerais do mundo dos games.
+
+## Como funciona
+
+```
+  Feeds RSS (IGN, GameSpot,          API CheapShark
+  Eurogamer, PC Gamer)               (promoções de PC)
+          │                                 │
+          ▼                                 ▼
+   detecta plataforma               desconto e nota mínimos
+   janela de 30 horas                       │
+   palavras bloqueadas                      │
+   junta notícias repetidas                 │
+          └──────────────┬──────────────────┘
+                         ▼
+            SQLite: tira o que já foi enviado
+                         ▼
+              Monta o resumo em HTML
+                         ▼
+             Telegram (divide se passar de 4096 caracteres)
+```
+
+- **Notícias repetidas:** a mesma notícia sai em vários sites com títulos diferentes. O bot compara os títulos sem acentos, pontuação e palavras vazias, e mantém só a mais recente.
+- **Sem reenvio:** os links enviados ficam num SQLite. No GitHub Actions, esse arquivo é guardado em cache entre uma execução e outra.
+- **Tolerante a falhas:** se um site ou a API de promoções cair, o resumo sai com o que estiver disponível.
+- **Segredos fora do código:** o token do Telegram vem de variável de ambiente e nunca aparece nos logs, nem em mensagens de erro.
+
+## Configuração
+
+Tudo fica no [`config.yaml`](config.yaml): plataformas, quantidade de itens, palavras bloqueadas, desconto mínimo das promoções e a lista de feeds. Para acrescentar um site, basta adicionar uma linha com o nome e a URL do RSS.
+
+## Como usar
+
+### 1. Criar o bot no Telegram
+
+1. No Telegram, fale com o **@BotFather**, envie `/newbot` e siga os passos. Ele devolve o **token**.
+2. Mande qualquer mensagem para o seu bot (ou adicione-o a um canal como administrador).
+3. Abra `https://api.telegram.org/bot<TOKEN>/getUpdates` no navegador e copie o `chat.id`.
+
+### 2. Rodar no seu computador
+
+```bash
+cp .env.example .env            # preencha TELEGRAM_TOKEN e TELEGRAM_CHAT_ID
+pip install -r requirements.txt
+python -m gamebot --dry-run     # mostra o resumo no terminal, sem enviar
+python -m gamebot               # envia de verdade
+```
+
+Ou com Docker:
+
+```bash
+docker compose run --rm bot --dry-run
+docker compose run --rm bot
+```
+
+### 3. Receber todo dia, de graça, com GitHub Actions
+
+1. No repositório, vá em **Settings → Secrets and variables → Actions** e crie os secrets `TELEGRAM_TOKEN` e `TELEGRAM_CHAT_ID`.
+2. Pronto. O workflow [`resumo-diario.yml`](.github/workflows/resumo-diario.yml) roda todo dia às 8h17 (horário de Brasília).
+3. Para testar na hora: aba **Actions → Resumo diário → Run workflow**.
+
+## Testes
+
+```bash
+pip install -r requirements-dev.txt
+pytest -q
+```
+
+São 20 testes, que rodam sem internet, usando feeds e respostas de API salvos em `tests/fixtures`. Eles cobrem a detecção de plataforma, a junção de notícias repetidas, os filtros, as promoções (inclusive com a API fora do ar), a formatação e a divisão da mensagem, o envio com erro e o fluxo completo sem reenviar no dia seguinte. O CI roda tudo a cada push.
+
+## Próximos passos
+
+- Comandos no bot, como `/promocoes` e `/noticias zelda`, com busca no histórico.
+- Promoções de console (PlayStation Store, eShop e Xbox), que hoje não têm uma API pública simples.
+- Resumo curto das notícias com IA.
+
+## Estrutura
+
+```
+gamebot/
+├── __main__.py      orquestra coleta → filtros → histórico → envio
+├── config.py        lê config.yaml e variáveis de ambiente
+├── models.py        Noticia e Promocao
+├── plataformas.py   detecta PC, PlayStation, Xbox e Nintendo no texto
+├── filtros.py       plataformas, palavras bloqueadas e repetidas
+├── banco.py         histórico em SQLite
+├── resumo.py        monta e divide a mensagem
+├── telegram.py      envio pela Bot API
+└── sources/
+    ├── rss.py       leitura dos feeds
+    └── promocoes.py API da CheapShark
+```

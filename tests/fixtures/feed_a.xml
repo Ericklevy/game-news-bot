@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0"><channel><title>Site A</title>
+<item><title>New Zelda game announced for Nintendo Switch 2</title><link>https://a.test/zelda</link>
+<description>&lt;p&gt;Nintendo revealed the next &lt;b&gt;Zelda&lt;/b&gt; today.&lt;/p&gt;</description><pubDate>Sat, 21 Nov 2026 10:00:00 GMT</pubDate></item>
+<item><title>PS5 Pro gets a price cut in Brazil</title><link>https://a.test/ps5</link>
+<description>Sony lowers the price of the PlayStation 5 Pro.</description><pubDate>Sat, 21 Nov 2026 09:00:00 GMT</pubDate></item>
+<item><title>The Last of Us movie box office record</title><link>https://a.test/movie</link>
+<description>Film news.</description><pubDate>Sat, 21 Nov 2026 08:00:00 GMT</pubDate></item>
+<item><title>Game industry layoffs hit another studio</title><link>https://a.test/layoffs</link>
+<description>Another round of cuts.</description><pubDate>Fri, 20 Nov 2026 20:00:00 GMT</pubDate></item>
+<item><title>Old news from last month</title><link>https://a.test/old</link>
+<description>Xbox thing.</description><pubDate>Tue, 20 Oct 2026 20:00:00 GMT</pubDate></item>
+</channel></rss>

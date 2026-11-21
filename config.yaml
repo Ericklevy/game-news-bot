@@ -1,0 +1,35 @@
+# Configuração do bot. Edite à vontade: não precisa mexer no código.
+
+# Plataformas que você acompanha. Notícias sem plataforma específica
+# (indústria, lançamentos gerais, eventos) entram se incluir_gerais for true.
+plataformas: [PC, PlayStation, Xbox, Nintendo]
+incluir_gerais: true
+
+# Quantos itens cada resumo traz, no máximo
+max_noticias: 8
+max_promocoes: 6
+
+# Só notícias publicadas nas últimas X horas
+janela_horas: 30
+
+# Palavras que tiram a notícia do resumo (filmes, séries, gadgets...)
+palavras_bloqueadas:
+  - movie
+  - tv series
+  - netflix
+  - box office
+  - filme
+  - série
+
+# Promoções de PC (API pública CheapShark)
+promocoes:
+  ativo: true
+  desconto_minimo: 60
+  nota_metacritic_minima: 75
+
+# Fontes de notícias (RSS). Adicione ou remova linhas livremente.
+feeds:
+  IGN: https://feeds.feedburner.com/ign/games-all
+  GameSpot: https://www.gamespot.com/feeds/mashup/
+  Eurogamer: https://www.eurogamer.net/feed
+  PC Gamer: https://www.pcgamer.com/feeds.xml

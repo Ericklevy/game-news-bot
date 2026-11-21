@@ -1,0 +1,37 @@
+"""Envio de mensagens pela API de bots do Telegram."""
+from __future__ import annotations
+
+import logging
+import time
+
+import requests
+
+from gamebot.resumo import dividir
+
+log = logging.getLogger(__name__)
+API = "https://api.telegram.org/bot{token}/sendMessage"
+
+
+class ErroTelegram(RuntimeError):
+    pass
+
+
+def enviar(token: str, chat_id: str, texto: str, sessao: requests.Session | None = None) -> int:
+    """Envia o texto (em quantos blocos forem precisos). Retorna quantas mensagens saíram."""
+    sessao = sessao or requests.Session()
+    enviadas = 0
+    for bloco in dividir(texto):
+        resp = sessao.post(API.format(token=token), timeout=20, json={
+            "chat_id": chat_id,
+            "text": bloco,
+            "parse_mode": "HTML",
+            "disable_web_page_preview": True,
+        })
+        corpo = resp.json() if resp.headers.get("content-type", "").startswith("application/json") else {}
+        if not corpo.get("ok"):
+            # Nunca loga o token: só o código e a descrição devolvidos pelo Telegram
+            raise ErroTelegram(f"Telegram recusou a mensagem ({resp.status_code}): {corpo.get('description', 'sem detalhe')}")
+        enviadas += 1
+        time.sleep(0.5)  # respeita o limite de mensagens por segundo
+    log.info("Telegram: %d mensagem(ns) enviada(s)", enviadas)
+    return enviadas

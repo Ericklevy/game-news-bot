@@ -1,0 +1,7 @@
+services:
+  bot:
+    build: .
+    env_file: .env
+    volumes:
+      - ./data:/app/data          # guarda o histórico do que já foi enviado
+      - ./config.yaml:/app/config.yaml:ro
