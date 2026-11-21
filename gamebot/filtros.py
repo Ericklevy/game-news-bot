@@ -59,5 +59,17 @@ def por_plataforma(noticias: Iterable[Noticia], plataformas: set[str], incluir_g
 
 def sem_bloqueadas(noticias: Iterable[Noticia], bloqueadas: Iterable[str]) -> list[Noticia]:
     """Tira notícias com palavras que você não quer ver (ex.: filmes, séries)."""
-    termos = [normalizar(b) for b in bloqueadas if b.strip()]
-    return [n for n in noticias if not any(t and t in normalizar(n.titulo) for t in termos)]
+    # Compara palavras inteiras: "how to" não pode bloquear "showcase"
+    termos = [f" {normalizar(b)} " for b in bloqueadas if normalizar(b)]
+    return [n for n in noticias if not any(t in f" {normalizar(n.titulo)} " for t in termos)]
+
+
+def limitar_por_fonte(noticias: Iterable[Noticia], maximo: int) -> list[Noticia]:
+    """No máximo N notícias de cada site, para o resumo não virar o feed de um site só."""
+    contagem: dict[str, int] = {}
+    resultado = []
+    for n in noticias:
+        if contagem.get(n.fonte, 0) < maximo:
+            contagem[n.fonte] = contagem.get(n.fonte, 0) + 1
+            resultado.append(n)
+    return resultado

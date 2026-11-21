@@ -13,6 +13,7 @@ class Noticia:
     publicada_em: datetime | None = None
     resumo: str = ""
     plataformas: frozenset[str] = field(default_factory=frozenset)
+    traduzida: bool = False
 
 
 @dataclass(frozen=True)

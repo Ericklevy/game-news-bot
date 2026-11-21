@@ -8,6 +8,7 @@ incluir_gerais: true
 # Quantos itens cada resumo traz, no máximo
 max_noticias: 8
 max_promocoes: 6
+max_por_fonte: 3      # para o resumo não virar o feed de um site só
 
 # Só notícias publicadas nas últimas X horas
 janela_horas: 30
@@ -20,6 +21,15 @@ palavras_bloqueadas:
   - box office
   - filme
   - série
+  # guias e detonados (sem valor como notícia)
+  - safe code
+  - how to
+  - where to find
+  - best settings
+  - best build
+  - guide
+  - walkthrough
+  - wordle
 
 # Promoções de PC (API pública CheapShark)
 promocoes:
@@ -27,9 +37,24 @@ promocoes:
   desconto_minimo: 60
   nota_metacritic_minima: 75
 
-# Fontes de notícias (RSS). Adicione ou remova linhas livremente.
+# Tradução para português com IA.
+# O bot tenta os provedores nesta ordem e pula os que não têm chave.
+# As chaves ficam nos secrets do GitHub (ou no .env): OPENROUTER_API_KEY,
+# GROQ_API_KEY, GEMINI_API_KEY e SAMBANOVA_API_KEY. Nunca neste arquivo.
+ia:
+  ativo: true
+  provedores: [openrouter, groq, gemini, sambanova]
+  # Para trocar o modelo de um provedor (os modelos grátis mudam com o tempo):
+  # modelos:
+  #   groq: llama-3.1-8b-instant
+  #   gemini: gemini-2.5-flash-lite
+
+# Fontes de notícias (RSS). Pode ser só a URL ou {url, plataforma}.
+# A plataforma vale para sites de uma plataforma só quando a notícia não cita nenhuma.
 feeds:
   IGN: https://feeds.feedburner.com/ign/games-all
   GameSpot: https://www.gamespot.com/feeds/mashup/
   Eurogamer: https://www.eurogamer.net/feed
-  PC Gamer: https://www.pcgamer.com/feeds.xml
+  PC Gamer:
+    url: https://www.pcgamer.com/feeds.xml
+    plataforma: PC

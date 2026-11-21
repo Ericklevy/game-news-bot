@@ -1,6 +1,6 @@
 # 🕹️ Game News Bot
 
-Bot que monta todo dia um **resumo de notícias e promoções de games** e envia no **Telegram**. Ele lê os principais sites de games, separa por plataforma (PC, PlayStation, Xbox e Nintendo), junta a mesma notícia publicada em sites diferentes, busca as melhores promoções de PC e nunca manda a mesma coisa duas vezes.
+Bot que monta todo dia um **resumo de notícias e promoções de games** e envia no **Telegram**, **em português**. Ele lê os principais sites de games, separa por plataforma (PC, PlayStation, Xbox e Nintendo), junta a mesma notícia publicada em sites diferentes, traduz com IA, busca as melhores promoções de PC e nunca manda a mesma coisa duas vezes.
 
 ![Python](https://img.shields.io/badge/Python-3.12-3776AB?style=flat-square&logo=python&logoColor=white)
 ![Telegram](https://img.shields.io/badge/Telegram-Bot%20API-26A5E4?style=flat-square&logo=telegram&logoColor=white)
@@ -13,10 +13,12 @@ Bot que monta todo dia um **resumo de notícias e promoções de games** e envia
 🕹️ Resumo gamer · 21/11/2026
 
 📰 Notícias
-🍄 Nintendo announces new Zelda game for Switch 2 — GameSpot
-🎮 PS5 Pro gets a price cut in Brazil — IGN
-🟩 Xbox Game Pass adds five games in December — GameSpot
-🌐 Game industry layoffs hit another studio — IGN
+🍄 Nintendo anuncia novo Zelda para o Switch 2
+   A Nintendo revelou o próximo jogo da série. — GameSpot
+🎮 PS5 Pro fica mais barato no Brasil
+   A Sony reduziu o preço do console. — IGN
+🟩 Xbox Game Pass recebe cinco jogos em dezembro — GameSpot
+🌐 Demissões atingem mais um estúdio — IGN
 
 💸 Promoções no PC
 Hades · -75% — US$ 6.24 (era US$ 24.99) na Steam · Metacritic 93
@@ -36,9 +38,13 @@ Cada título é um link. Os ícones mostram a plataforma: 🖥️ PC, 🎮 PlayS
    janela de 30 horas                       │
    palavras bloqueadas                      │
    junta notícias repetidas                 │
+   no máximo 3 por site                     │
           └──────────────┬──────────────────┘
                          ▼
             SQLite: tira o que já foi enviado
+                         ▼
+     IA traduz tudo numa chamada só (OpenRouter → Groq
+     → Gemini → SambaNova; se todos falharem, vai em inglês)
                          ▼
               Monta o resumo em HTML
                          ▼
@@ -47,6 +53,8 @@ Cada título é um link. Os ícones mostram a plataforma: 🖥️ PC, 🎮 PlayS
 
 - **Notícias repetidas:** a mesma notícia sai em vários sites com títulos diferentes. O bot compara os títulos sem acentos, pontuação e palavras vazias, e mantém só a mais recente.
 - **Sem reenvio:** os links enviados ficam num SQLite. No GitHub Actions, esse arquivo é guardado em cache entre uma execução e outra.
+- **Tradução com IA sem depender de um provedor:** a tradução usa o formato de chat da OpenAI, que OpenRouter, Groq, Gemini e SambaNova aceitam. O bot tenta na ordem do `config.yaml`, pula quem não tem chave e passa para o próximo se um falhar ou estourar o limite. As notícias do dia vão numa única chamada, então o uso cabe nos planos gratuitos.
+- **Arquivo para buscas futuras:** cada notícia enviada fica salva já traduzida (título, resumo, site, plataforma e data). É a base para um comando de busca ou RAG.
 - **Tolerante a falhas:** se um site ou a API de promoções cair, o resumo sai com o que estiver disponível.
 - **Segredos fora do código:** o token do Telegram vem de variável de ambiente e nunca aparece nos logs, nem em mensagens de erro.
 
@@ -81,6 +89,7 @@ docker compose run --rm bot
 ### 3. Receber todo dia, de graça, com GitHub Actions
 
 1. No repositório, vá em **Settings → Secrets and variables → Actions** e crie os secrets `TELEGRAM_TOKEN` e `TELEGRAM_CHAT_ID`.
+   Para receber em português, crie também pelo menos um destes: `OPENROUTER_API_KEY`, `GROQ_API_KEY`, `GEMINI_API_KEY` ou `SAMBANOVA_API_KEY`.
 2. Pronto. O workflow [`resumo-diario.yml`](.github/workflows/resumo-diario.yml) roda todo dia às 8h17 (horário de Brasília).
 3. Para testar na hora: aba **Actions → Resumo diário → Run workflow**.
 
@@ -91,13 +100,13 @@ pip install -r requirements-dev.txt
 pytest -q
 ```
 
-São 20 testes, que rodam sem internet, usando feeds e respostas de API salvos em `tests/fixtures`. Eles cobrem a detecção de plataforma, a junção de notícias repetidas, os filtros, as promoções (inclusive com a API fora do ar), a formatação e a divisão da mensagem, o envio com erro e o fluxo completo sem reenviar no dia seguinte. O CI roda tudo a cada push.
+São 31 testes, que rodam sem internet, usando feeds e respostas de API salvos em `tests/fixtures`. Eles cobrem a detecção de plataforma, a junção de notícias repetidas, os filtros, as promoções (inclusive com a API fora do ar), a tradução (troca de provedor, resposta incompleta, nenhuma chave e chave fora dos logs), a formatação e a divisão da mensagem, o envio com erro e o fluxo completo sem reenviar no dia seguinte. O CI roda tudo a cada push.
 
 ## Próximos passos
 
 - Comandos no bot, como `/promocoes` e `/noticias zelda`, com busca no histórico.
 - Promoções de console (PlayStation Store, eShop e Xbox), que hoje não têm uma API pública simples.
-- Resumo curto das notícias com IA.
+- Comando `/perguntar` com RAG sobre o arquivo de notícias.
 
 ## Estrutura
 
@@ -110,6 +119,7 @@ gamebot/
 ├── filtros.py       plataformas, palavras bloqueadas e repetidas
 ├── banco.py         histórico em SQLite
 ├── resumo.py        monta e divide a mensagem
+├── ia.py            tradução com OpenRouter, Groq, Gemini ou SambaNova
 ├── telegram.py      envio pela Bot API
 └── sources/
     ├── rss.py       leitura dos feeds

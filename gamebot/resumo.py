@@ -27,7 +27,8 @@ def montar(noticias: list[Noticia], promocoes: list[Promocao], dia: date | None 
         for n in noticias:
             partes.append(
                 f"{_plataformas(n.plataformas)} <a href=\"{escape(n.link, quote=True)}\">{escape(n.titulo)}</a>"
-                f"\n<i>{escape(n.fonte)}</i>"
+                + (f"\n{escape(n.resumo)}" if n.traduzida and n.resumo else "")
+                + f"\n<i>{escape(n.fonte)}</i>"
             )
 
     if promocoes:

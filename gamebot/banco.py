@@ -13,6 +13,18 @@ CREATE TABLE IF NOT EXISTS enviados (
     titulo     TEXT NOT NULL,
     enviado_em TEXT NOT NULL
 );
+
+-- Arquivo das notícias enviadas, já traduzidas. É a base para buscas e RAG no futuro.
+CREATE TABLE IF NOT EXISTS noticias (
+    link        TEXT PRIMARY KEY,
+    titulo      TEXT NOT NULL,
+    resumo      TEXT NOT NULL DEFAULT '',
+    fonte       TEXT NOT NULL,
+    plataformas TEXT NOT NULL DEFAULT '',
+    publicada_em TEXT,
+    traduzida   INTEGER NOT NULL DEFAULT 0,
+    salva_em    TEXT NOT NULL
+);
 """
 
 
@@ -38,6 +50,17 @@ class Banco:
             self.conexao.executemany(
                 "INSERT OR IGNORE INTO enviados (link, tipo, titulo, enviado_em) VALUES (?, ?, ?, ?)",
                 [(link, tipo, titulo, agora) for link, tipo, titulo in itens],
+            )
+
+    def arquivar(self, noticias) -> None:
+        """Guarda as notícias (título e resumo já traduzidos, quando houver)."""
+        agora = datetime.now(timezone.utc).isoformat(timespec="seconds")
+        with self.conexao:
+            self.conexao.executemany(
+                "INSERT OR REPLACE INTO noticias VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+                [(n.link, n.titulo, n.resumo, n.fonte, ",".join(sorted(n.plataformas)),
+                  n.publicada_em.isoformat() if n.publicada_em else None, int(n.traduzida), agora)
+                 for n in noticias],
             )
 
     def limpar_antigos(self, dias: int = 60) -> None:

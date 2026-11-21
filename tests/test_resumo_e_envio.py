@@ -48,6 +48,8 @@ def test_fluxo_completo_nao_reenvia_no_dia_seguinte(fixture, monkeypatch):
     responses.add_callback(responses.POST, "https://api.telegram.org/botT/sendMessage",
                            callback=lambda req: (enviados.append(req.body) or (200, {}, '{"ok": true}')),
                            content_type="application/json")
+    for nome in ("OPENROUTER", "GROQ", "GEMINI", "SAMBANOVA"):
+        monkeypatch.delenv(f"{nome}_API_KEY", raising=False)
     cfg = Config(
         feeds={"A": str(fixture("feed_a.xml")), "B": str(fixture("feed_b.xml"))},
         palavras_bloqueadas=["box office"], promocoes_ativas=False,
@@ -65,6 +67,17 @@ def test_fluxo_completo_nao_reenvia_no_dia_seguinte(fixture, monkeypatch):
     assert "Old news" not in primeiro               # fora da janela de 30 h
     assert primeiro.count("Zelda") == 1             # mesmo assunto em dois sites
 
+    arquivadas = banco.conexao.execute("SELECT COUNT(*) FROM noticias").fetchone()[0]
+    assert arquivadas == primeiro.count("<a href=")
+
     segundo = executar(cfg, agora=agora)
     assert "Nada novo hoje" in segundo
     assert len(enviados) == 2
+
+
+def test_resumo_mostra_frase_traduzida():
+    n = Noticia("PS5 Pro fica mais barato", "https://x", "IGN", resumo="A Sony reduziu o preço.", traduzida=True)
+    original = Noticia("PS5 Pro price cut", "https://y", "IGN", resumo="Sony lowers the price.")
+    texto = resumo.montar([n, original], [])
+    assert "A Sony reduziu o preço." in texto
+    assert "Sony lowers the price." not in texto     # resumo em inglês não entra

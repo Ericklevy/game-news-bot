@@ -23,13 +23,28 @@ class Config:
     telegram_token: str = ""
     telegram_chat_id: str = ""
     banco: str = "data/gamebot.db"
+    max_por_fonte: int = 3
+    plataforma_por_feed: dict[str, str] = field(default_factory=dict)
+    ia: dict = field(default_factory=dict)
 
 
 def carregar(caminho: str | Path = "config.yaml") -> Config:
     dados = yaml.safe_load(Path(caminho).read_text(encoding="utf-8")) or {}
     promo = dados.get("promocoes") or {}
+    # Cada feed pode ser só a URL ou {url: ..., plataforma: PC}
+    feeds, plataforma_por_feed = {}, {}
+    for nome, valor in (dados.get("feeds") or {}).items():
+        if isinstance(valor, dict):
+            feeds[nome] = valor["url"]
+            if valor.get("plataforma"):
+                plataforma_por_feed[nome] = valor["plataforma"]
+        else:
+            feeds[nome] = valor
     return Config(
-        feeds=dados.get("feeds") or {},
+        feeds=feeds,
+        plataforma_por_feed=plataforma_por_feed,
+        max_por_fonte=int(dados.get("max_por_fonte", 3)),
+        ia=dados.get("ia") or {},
         plataformas=set(dados.get("plataformas") or []),
         incluir_gerais=bool(dados.get("incluir_gerais", True)),
         max_noticias=int(dados.get("max_noticias", 8)),

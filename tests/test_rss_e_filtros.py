@@ -44,3 +44,21 @@ def test_filtra_por_plataforma_e_mantem_gerais():
 def test_bloqueia_palavras_sem_ligar_para_acento_e_maiuscula():
     ns = [Noticia("Novo FILME de Mario", "1", "x"), Noticia("Mario Kart", "2", "x")]
     assert [n.titulo for n in filtros.sem_bloqueadas(ns, ["filme"])] == ["Mario Kart"]
+
+
+def test_bloqueio_compara_palavras_inteiras():
+    ns = [Noticia("Xbox Games Showcase date announced", "1", "x"),
+          Noticia("How to unlock the Brooks safe in GTA 6", "2", "x")]
+    assert [n.titulo for n in filtros.sem_bloqueadas(ns, ["how to"])] == ["Xbox Games Showcase date announced"]
+
+
+def test_limita_noticias_por_site():
+    ns = [Noticia(f"n{i}", str(i), "PC Gamer") for i in range(5)] + [Noticia("outra", "x", "IGN")]
+    assert [n.titulo for n in filtros.limitar_por_fonte(ns, 3)] == ["n0", "n1", "n2", "outra"]
+
+
+def test_plataforma_padrao_do_site(fixture):
+    noticias = ler_feed("Site A", str(fixture("feed_a.xml")), plataforma_padrao="PC")
+    por_titulo = {n.titulo: n.plataformas for n in noticias}
+    assert por_titulo["Game industry layoffs hit another studio"] == {"PC"}            # sem plataforma no texto
+    assert por_titulo["PS5 Pro gets a price cut in Brazil"] == {"PlayStation"}         # texto manda

@@ -28,8 +28,12 @@ def _data(entrada) -> datetime | None:
     return datetime(*struct[:6], tzinfo=timezone.utc)
 
 
-def ler_feed(nome: str, url_ou_xml: str) -> list[Noticia]:
-    """Lê um feed (URL ou conteúdo XML). Falhas viram lista vazia e um aviso no log."""
+def ler_feed(nome: str, url_ou_xml: str, plataforma_padrao: str | None = None) -> list[Noticia]:
+    """Lê um feed (URL ou conteúdo XML). Falhas viram lista vazia e um aviso no log.
+
+    plataforma_padrao vale para sites de uma plataforma só (ex.: PC Gamer = PC)
+    quando o texto da notícia não cita nenhuma.
+    """
     feed = feedparser.parse(url_ou_xml, agent="game-news-bot/1.0 (+https://github.com/Ericklevy/game-news-bot)")
     if feed.bozo and not feed.entries:
         log.warning("Feed %s indisponível: %s", nome, feed.get("bozo_exception"))
@@ -47,7 +51,7 @@ def ler_feed(nome: str, url_ou_xml: str) -> list[Noticia]:
             fonte=nome,
             publicada_em=_data(e),
             resumo=resumo,
-            plataformas=detectar(f"{titulo} {resumo}"),
+            plataformas=detectar(f"{titulo} {resumo}") or frozenset({plataforma_padrao} - {None}),
         ))
     log.info("Feed %s: %d notícias", nome, len(noticias))
     return noticias

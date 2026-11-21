@@ -6,7 +6,7 @@ import logging
 import sys
 from datetime import datetime, timedelta, timezone
 
-from gamebot import filtros, resumo, telegram
+from gamebot import filtros, ia, resumo, telegram
 from gamebot.banco import Banco
 from gamebot.config import Config, carregar
 from gamebot.models import Noticia, Promocao
@@ -19,7 +19,7 @@ log = logging.getLogger("gamebot")
 def coletar_noticias(cfg: Config, agora: datetime) -> list[Noticia]:
     todas: list[Noticia] = []
     for nome, url in cfg.feeds.items():
-        todas.extend(ler_feed(nome, url))
+        todas.extend(ler_feed(nome, url, cfg.plataforma_por_feed.get(nome)))
     limite = agora - timedelta(hours=cfg.janela_horas)
     recentes = [n for n in todas if n.publicada_em is None or n.publicada_em >= limite]
     recentes.sort(key=lambda n: n.publicada_em or agora, reverse=True)
@@ -43,8 +43,13 @@ def executar(cfg: Config, dry_run: bool = False, agora: datetime | None = None) 
 
         # Só o que ainda não foi enviado em dias anteriores
         vistos = banco.ja_enviados([n.link for n in noticias] + [p.link for p in promocoes])
-        noticias = [n for n in noticias if n.link not in vistos][: cfg.max_noticias]
+        noticias = filtros.limitar_por_fonte([n for n in noticias if n.link not in vistos], cfg.max_por_fonte)
+        noticias = noticias[: cfg.max_noticias]
         promocoes = [p for p in promocoes if p.link not in vistos][: cfg.max_promocoes]
+
+        # Traduz só o que vai ser enviado (uma chamada de IA por dia)
+        if cfg.ia.get("ativo", True):
+            noticias = ia.traduzir(noticias, ia.montar_provedores(cfg.ia))
 
         texto = resumo.montar(noticias, promocoes, agora.date())
         if dry_run:
@@ -56,6 +61,7 @@ def executar(cfg: Config, dry_run: bool = False, agora: datetime | None = None) 
         telegram.enviar(cfg.telegram_token, cfg.telegram_chat_id, texto)
         banco.marcar([(n.link, "noticia", n.titulo) for n in noticias] +
                      [(p.link, "promocao", p.jogo) for p in promocoes])
+        banco.arquivar(noticias)
         banco.limpar_antigos()
         return texto
     finally:
