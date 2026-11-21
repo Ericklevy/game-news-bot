@@ -1,0 +1,10 @@
+[project]
+name = "game-news-bot"
+version = "1.0.0"
+description = "Resumo diário de notícias e promoções de games no Telegram"
+requires-python = ">=3.11"
+
+[tool.pytest.ini_options]
+# Permite rodar só "pytest" na raiz: o pacote gamebot fica importável
+pythonpath = ["."]
+testpaths = ["tests"]
