@@ -154,3 +154,53 @@ def traduzir(noticias: list[Noticia], provedores: list[Provedor],
         ]
     log.warning("IA: todos os provedores falharam, resumo sai em inglês")
     return noticias
+
+
+def _conversar(provedor: Provedor, sistema: str, usuario: str, sessao: requests.Session,
+               timeout: int, temperatura: float) -> str:
+    resp = sessao.post(
+        provedor.url,
+        timeout=timeout,
+        headers={
+            "Authorization": f"Bearer {provedor.chave}",
+            "Content-Type": "application/json",
+            "HTTP-Referer": "https://github.com/Ericklevy/game-news-bot",
+            "X-Title": "game-news-bot",
+        },
+        json={
+            "model": provedor.modelo,
+            "temperature": temperatura,
+            "messages": [{"role": "system", "content": sistema}, {"role": "user", "content": usuario}],
+        },
+    )
+    if resp.status_code != 200:
+        raise FalhaIA(f"HTTP {resp.status_code}: {resp.text[:160]}")
+    try:
+        texto = (resp.json()["choices"][0]["message"]["content"] or "").strip()
+    except (KeyError, IndexError, TypeError, ValueError) as erro:
+        raise FalhaIA(f"resposta em formato inesperado ({erro})") from erro
+    if not texto:
+        raise FalhaIA("resposta vazia")
+    return texto
+
+
+def completar(provedores: list[Provedor], sistema: str, usuario: str,
+              sessao: requests.Session | None = None, timeout: int = 60,
+              temperatura: float = 0.3) -> str:
+    """Pergunta livre para a IA, com a mesma fila de provedores da tradução.
+
+    Levanta FalhaIA se nenhum provedor responder.
+    """
+    disponiveis = [p for p in provedores if p.chave]
+    if not disponiveis:
+        raise FalhaIA("nenhuma chave de IA configurada")
+    sessao = sessao or requests.Session()
+    for provedor in disponiveis:
+        try:
+            texto = _conversar(provedor, sistema, usuario, sessao, timeout, temperatura)
+        except (FalhaIA, requests.RequestException) as erro:
+            log.warning("IA %s falhou: %s", provedor.nome, erro)
+            continue
+        log.info("IA: resposta de %s (%s)", provedor.nome, provedor.modelo)
+        return texto
+    raise FalhaIA("todos os provedores falharam")

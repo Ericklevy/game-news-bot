@@ -68,10 +68,21 @@ def executar(cfg: Config, dry_run: bool = False, agora: datetime | None = None) 
         banco.fechar()
 
 
+def _com_banco(cfg: Config, uso):
+    banco = Banco(cfg.banco)
+    try:
+        return uso(banco)
+    finally:
+        banco.fechar()
+
+
 def escutar(cfg: Config) -> None:
     from datetime import time as hora_do_dia
 
+    from gamebot import assistente
     from gamebot.escuta import Escuta
+
+    provedores = ia.montar_provedores(cfg.ia)
 
     if not cfg.telegram_token or not cfg.telegram_chat_id:
         raise SystemExit("Defina TELEGRAM_TOKEN e TELEGRAM_CHAT_ID.")
@@ -88,6 +99,8 @@ def escutar(cfg: Config) -> None:
         responder=lambda chat, texto: telegram.enviar(cfg.telegram_token, chat, texto),
         rodar_resumo=lambda: executar(cfg),
         destino=cfg.telegram_chat_id,
+        perguntar=lambda texto: _com_banco(cfg, lambda b: assistente.perguntar(texto, b, provedores)),
+        semana=lambda: _com_banco(cfg, lambda b: assistente.semana(b, provedores)),
         hora_diaria=hora_do_dia(h, m),
     ).rodar()
 

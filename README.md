@@ -56,7 +56,8 @@ Cada título é um link. Os ícones mostram a plataforma: 🖥️ PC, 🎮 PlayS
 - **Notícias repetidas:** a mesma notícia sai em vários sites com títulos diferentes. O bot compara os títulos sem acentos, pontuação e palavras vazias, e mantém só a mais recente.
 - **Sem reenvio:** os links enviados ficam num SQLite. No GitHub Actions, esse arquivo é guardado em cache entre uma execução e outra.
 - **Tradução com IA sem depender de um provedor:** a tradução usa o formato de chat da OpenAI, que OpenRouter, Groq, Gemini e SambaNova aceitam. O bot tenta na ordem do `config.yaml`, pula quem não tem chave e passa para o próximo se um falhar ou estourar o limite. As notícias do dia vão numa única chamada, então o uso cabe nos planos gratuitos.
-- **Arquivo para buscas futuras:** cada notícia enviada fica salva já traduzida (título, resumo, site, plataforma e data). É a base para um comando de busca ou RAG.
+- **RAG leve, feito para 1 GB de RAM:** cada notícia enviada fica salva já traduzida num índice de busca de texto do SQLite (FTS5). No `/perguntar`, o bot acha as notícias mais relevantes e a IA responde usando só elas, citando cada uma pelo número, sem banco vetorial e sem modelo rodando na máquina.
+- **Ideias de vídeo:** o `/semana` pede para a IA agrupar as notícias da semana por assunto e ordena pelo que mais apareceu. Sem IA, uma contagem de palavras faz o mesmo papel.
 - **Tolerante a falhas:** se um site ou a API de promoções cair, o resumo sai com o que estiver disponível.
 - **Segredos fora do código:** o token do Telegram vem de variável de ambiente e nunca aparece nos logs, nem em mensagens de erro.
 
@@ -67,6 +68,8 @@ No modo servidor (`python -m gamebot --escutar`), o bot fica ligado e responde:
 | Comando | O que faz |
 |---|---|
 | `/agora` | Busca e envia as novidades na hora |
+| `/perguntar <pergunta>` | Responde com base nas notícias guardadas, citando as fontes (RAG) |
+| `/semana` | Ranking dos assuntos mais falados nos últimos 7 dias |
 | `/status` | Mostra quando foi o último resumo |
 | `/ajuda` | Lista os comandos |
 
@@ -123,13 +126,14 @@ pip install -r requirements-dev.txt
 pytest -q
 ```
 
-São 41 testes, que rodam sem internet, usando feeds e respostas de API salvos em `tests/fixtures`. Eles cobrem a detecção de plataforma, a junção de notícias repetidas, os filtros, as promoções (inclusive com a API fora do ar), a tradução (troca de provedor, resposta incompleta, nenhuma chave e chave fora dos logs), a formatação e a divisão da mensagem, o envio com erro o fluxo completo sem reenviar no dia seguinte e o modo servidor (comandos, chat não autorizado, horário do resumo diário e reinício sem repetir o resumo). O CI roda tudo a cada push.
+São 55 testes, que rodam sem internet, usando feeds e respostas de API salvos em `tests/fixtures`. Eles cobrem a detecção de plataforma, a junção de notícias repetidas, os filtros, as promoções (inclusive com a API fora do ar), a tradução (troca de provedor, resposta incompleta, nenhuma chave e chave fora dos logs), a formatação e a divisão da mensagem, o envio com erro o fluxo completo sem reenviar no dia seguinte e o modo servidor (comandos, chat não autorizado, horário do resumo diário e reinício sem repetir o resumo). O CI roda tudo a cada push.
 
 ## Próximos passos
 
 - Comandos no bot, como `/promocoes` e `/noticias zelda`, com busca no histórico.
 - Promoções de console (PlayStation Store, eShop e Xbox), que hoje não têm uma API pública simples.
-- Comando `/perguntar` com RAG sobre o arquivo de notícias.
+- `/roteiro`: rascunho de roteiro de vídeo com as notícias da semana.
+- Busca por significado (embeddings) no `/perguntar`.
 
 ## Estrutura
 
@@ -140,6 +144,7 @@ gamebot/
 ├── models.py        Noticia e Promocao
 ├── plataformas.py   detecta PC, PlayStation, Xbox e Nintendo no texto
 ├── filtros.py       plataformas, palavras bloqueadas e repetidas
+├── assistente.py    /perguntar (RAG) e /semana (ranking de assuntos)
 ├── banco.py         histórico em SQLite
 ├── resumo.py        monta e divide a mensagem
 ├── ia.py            tradução com OpenRouter, Groq, Gemini ou SambaNova

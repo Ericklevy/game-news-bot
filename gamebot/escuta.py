@@ -17,6 +17,8 @@ log = logging.getLogger(__name__)
 AJUDA = (
     "🕹️ <b>Resumo Gamer</b>\n\n"
     "/agora — publica as novidades deste momento\n"
+    "/perguntar &lt;pergunta&gt; — responde com base nas notícias guardadas\n"
+    "/semana — ranking dos assuntos mais falados (ideias de vídeo)\n"
     "/status — quando foi o último resumo\n"
     "/ajuda — esta mensagem\n\n"
     "Todo dia às {hora} o resumo chega sozinho."
@@ -38,6 +40,8 @@ class Escuta:
     offset: int | None = None
     salvar_diario: Callable[[str], None] = lambda data: None   # guarda a data para sobreviver a reinícios
     destino: str = ""                                          # onde o resumo é publicado (para avisar o dono)
+    perguntar: Callable[[str], str] | None = None               # /perguntar: pergunta -> resposta (RAG)
+    semana: Callable[[], str] | None = None                     # /semana: ranking de assuntos
 
     def __post_init__(self):
         if self.relogio is None:
@@ -61,6 +65,7 @@ class Escuta:
         if not chat or not texto.startswith("/"):
             return
         comando = texto.split()[0].split("@")[0].lower()
+        argumento = texto[len(texto.split()[0]):].strip()
 
         if chat != self.chat_autorizado:
             # Bot pessoal: estranhos não gastam a cota da IA nem do Telegram
@@ -75,6 +80,13 @@ class Escuta:
             self.enviar_resumo("pedido no /agora")
             if self.destino and self.destino != chat:
                 self.responder(chat, f"✅ Resumo publicado em {self.destino}.")
+        elif comando == "/perguntar" and self.perguntar:
+            if argumento:
+                self.responder(chat, "🔎 Procurando nas notícias…")
+            self.responder(chat, self.perguntar(argumento))
+        elif comando == "/semana" and self.semana:
+            self.responder(chat, "📊 Montando o ranking da semana…")
+            self.responder(chat, self.semana())
         elif comando == "/status":
             if self.ultimo_envio:
                 quando = self.ultimo_envio.astimezone(self.fuso).strftime("%d/%m às %Hh%M")
