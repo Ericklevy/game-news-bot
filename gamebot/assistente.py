@@ -16,6 +16,7 @@ from html import escape
 from gamebot import ia
 from gamebot.banco import Banco, Registro, buscar, recentes
 from gamebot.filtros import normalizar
+from gamebot.sources import pagina
 
 log = logging.getLogger(__name__)
 
@@ -37,7 +38,8 @@ _GENERICAS = {
 
 SISTEMA_PERGUNTA = (
     "Você é o assistente do bot Resumo Gamer. Responda em português do Brasil, de forma curta e direta "
-    "(no máximo 6 frases), usando SOMENTE as notícias numeradas fornecidas. Cite as notícias pelo número "
+    "(no máximo 6 frases), usando SOMENTE as notícias numeradas fornecidas e os trechos das matérias, "
+    "quando houver. Não copie frases inteiras das matérias: explique com suas palavras. Cite as notícias pelo número "
     "entre colchetes, por exemplo [1] ou [2][3]. Se as notícias não responderem à pergunta, diga isso "
     "claramente e não invente nada. Não use markdown, só texto simples."
 )
@@ -57,8 +59,15 @@ def consulta_fts(pergunta: str) -> str:
     return " OR ".join(f'"{p}"*' for p in vistas)
 
 
-def _fontes(registros: list[Registro]) -> str:
-    return "\n".join(f"[{i}] {r.titulo} — {r.resumo} ({r.fonte}, {r.data[:10]})" for i, r in enumerate(registros, 1))
+def _fontes(registros: list[Registro], textos: dict[int, str] | None = None) -> str:
+    textos = textos or {}
+    linhas = []
+    for i, r in enumerate(registros, 1):
+        linha = f"[{i}] {r.titulo} — {r.resumo} ({r.fonte}, {r.data[:10]})"
+        if textos.get(i):
+            linha += f"\nTrecho da matéria [{i}]:\n{textos[i]}"
+        linhas.append(linha)
+    return "\n\n".join(linhas)
 
 
 def _links(registros: list[Registro], numeros: list[int] | None = None) -> str:
@@ -70,7 +79,8 @@ def _links(registros: list[Registro], numeros: list[int] | None = None) -> str:
     )
 
 
-def perguntar(pergunta: str, banco: Banco, provedores: list[ia.Provedor], dias: int = 30) -> str:
+def perguntar(pergunta: str, banco: Banco, provedores: list[ia.Provedor], dias: int = 30,
+              ler_materia=None, materias: int = 3) -> str:
     pergunta = pergunta.strip()
     if not pergunta:
         return "Escreva a pergunta depois do comando. Exemplo:\n/perguntar o que saiu de GTA 6 essa semana?"
@@ -80,8 +90,12 @@ def perguntar(pergunta: str, banco: Banco, provedores: list[ia.Provedor], dias: 
         return (f"🔎 Não achei nada sobre isso nas notícias dos últimos {dias} dias.\n"
                 "Tente outras palavras, como o nome do jogo ou da empresa.")
 
+    # Lê na hora o texto das matérias mais relevantes (sob demanda: só quando alguém pergunta)
+    ler_materia = ler_materia or pagina.ler
+    textos = {i: ler_materia(r.link) for i, r in enumerate(registros[:materias], 1)} if materias else {}
     try:
-        resposta = ia.completar(provedores, SISTEMA_PERGUNTA, f"Notícias:\n{_fontes(registros)}\n\nPergunta: {pergunta}")
+        resposta = ia.completar(provedores, SISTEMA_PERGUNTA,
+                                f"Notícias:\n{_fontes(registros, textos)}\n\nPergunta: {pergunta}")
     except ia.FalhaIA as erro:
         log.warning("Sem IA para o /perguntar: %s", erro)
         return f"🔎 A IA não respondeu agora, mas achei estas notícias:\n\n{_links(registros)}"
@@ -104,7 +118,10 @@ def _ranking_simples(registros: list[Registro]) -> list[tuple[str, list[int]]]:
 
 
 def semana(banco: Banco, provedores: list[ia.Provedor], dias: int = 7, agora: datetime | None = None) -> str:
-    registros = recentes(banco, dias=dias, limite=80)
+    todos = recentes(banco, dias=dias, limite=5000)
+    # A IA recebe uma amostra espalhada pela semana inteira (no máximo 150 títulos, para caber no plano grátis)
+    passo = max(1, -(-len(todos) // 150))
+    registros = todos[::passo][:150]
     if len(registros) < 2:
         return "📊 Ainda tenho poucas notícias guardadas para montar o ranking. Volte depois de alguns resumos."
 
@@ -126,7 +143,8 @@ def semana(banco: Banco, provedores: list[ia.Provedor], dias: int = 7, agora: da
 
     assuntos.sort(key=lambda a: len(a[1]), reverse=True)
     medalhas = ["🥇", "🥈", "🥉", "4️⃣", "5️⃣", "6️⃣"]
-    partes = [f"<b>📊 Assuntos da semana</b> ({len(registros)} notícias analisadas)"]
+    amostra = f", amostra de {len(registros)}" if len(registros) < len(todos) else ""
+    partes = [f"<b>📊 Assuntos da semana</b> ({len(todos)} notícias guardadas{amostra})"]
     for pos, (assunto, ids) in enumerate(assuntos):
         fontes = {registros[i].fonte for i in ids}
         destaque = registros[ids[0]]

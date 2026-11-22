@@ -56,7 +56,7 @@ Cada título é um link. Os ícones mostram a plataforma: 🖥️ PC, 🎮 PlayS
 - **Notícias repetidas:** a mesma notícia sai em vários sites com títulos diferentes. O bot compara os títulos sem acentos, pontuação e palavras vazias, e mantém só a mais recente.
 - **Sem reenvio:** os links enviados ficam num SQLite. No GitHub Actions, esse arquivo é guardado em cache entre uma execução e outra.
 - **Tradução com IA sem depender de um provedor:** a tradução usa o formato de chat da OpenAI, que OpenRouter, Groq, Gemini e SambaNova aceitam. O bot tenta na ordem do `config.yaml`, pula quem não tem chave e passa para o próximo se um falhar ou estourar o limite. As notícias do dia vão numa única chamada, então o uso cabe nos planos gratuitos.
-- **RAG leve, feito para 1 GB de RAM:** cada notícia enviada fica salva já traduzida num índice de busca de texto do SQLite (FTS5). No `/perguntar`, o bot acha as notícias mais relevantes e a IA responde usando só elas, citando cada uma pelo número, sem banco vetorial e sem modelo rodando na máquina.
+- **RAG leve, feito para 1 GB de RAM:** todas as notícias coletadas (cerca de 180 por execução) entram num índice de busca de texto do SQLite (FTS5). As enviadas ficam em português, e as outras com o resumo do próprio site, sem gastar IA. No `/perguntar`, o bot acha as 8 notícias mais relevantes, **lê na hora o texto das 3 primeiras matérias** e a IA responde usando só esse material, citando cada fonte pelo número. Sem banco vetorial e sem modelo rodando na máquina. O arquivo guarda seis meses.
 - **Ideias de vídeo:** o `/semana` pede para a IA agrupar as notícias da semana por assunto e ordena pelo que mais apareceu. Sem IA, uma contagem de palavras faz o mesmo papel.
 - **Tolerante a falhas:** se um site ou a API de promoções cair, o resumo sai com o que estiver disponível.
 - **Segredos fora do código:** o token do Telegram vem de variável de ambiente e nunca aparece nos logs, nem em mensagens de erro.
@@ -126,7 +126,7 @@ pip install -r requirements-dev.txt
 pytest -q
 ```
 
-São 55 testes, que rodam sem internet, usando feeds e respostas de API salvos em `tests/fixtures`. Eles cobrem a detecção de plataforma, a junção de notícias repetidas, os filtros, as promoções (inclusive com a API fora do ar), a tradução (troca de provedor, resposta incompleta, nenhuma chave e chave fora dos logs), a formatação e a divisão da mensagem, o envio com erro o fluxo completo sem reenviar no dia seguinte e o modo servidor (comandos, chat não autorizado, horário do resumo diário e reinício sem repetir o resumo). O CI roda tudo a cada push.
+São 62 testes, que rodam sem internet, usando feeds e respostas de API salvos em `tests/fixtures`. Eles cobrem a detecção de plataforma, a junção de notícias repetidas, os filtros, as promoções (inclusive com a API fora do ar), a tradução (troca de provedor, resposta incompleta, nenhuma chave e chave fora dos logs), a formatação e a divisão da mensagem, o envio com erro o fluxo completo sem reenviar no dia seguinte e o modo servidor (comandos, chat não autorizado, horário do resumo diário e reinício sem repetir o resumo). O CI roda tudo a cada push.
 
 ## Próximos passos
 

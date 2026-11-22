@@ -16,7 +16,8 @@ from gamebot.sources.rss import ler_feed
 log = logging.getLogger("gamebot")
 
 
-def coletar_noticias(cfg: Config, agora: datetime) -> list[Noticia]:
+def coletar_noticias(cfg: Config, agora: datetime) -> tuple[list[Noticia], list[Noticia]]:
+    """Devolve (candidatas ao resumo, todas as recentes para o arquivo de busca)."""
     todas: list[Noticia] = []
     for nome, url in cfg.feeds.items():
         todas.extend(ler_feed(nome, url, cfg.plataforma_por_feed.get(nome)))
@@ -25,7 +26,8 @@ def coletar_noticias(cfg: Config, agora: datetime) -> list[Noticia]:
     recentes.sort(key=lambda n: n.publicada_em or agora, reverse=True)
     recentes = filtros.sem_bloqueadas(recentes, cfg.palavras_bloqueadas)
     recentes = filtros.por_plataforma(recentes, cfg.plataformas, cfg.incluir_gerais)
-    return filtros.sem_repetidas(recentes)
+    # O arquivo guarda também as repetidas: o /semana conta em quantos sites cada assunto saiu
+    return filtros.sem_repetidas(recentes), recentes
 
 
 def coletar_promocoes(cfg: Config) -> list[Promocao]:
@@ -38,8 +40,11 @@ def executar(cfg: Config, dry_run: bool = False, agora: datetime | None = None) 
     agora = agora or datetime.now(timezone.utc)
     banco = Banco(cfg.banco)
     try:
-        noticias = coletar_noticias(cfg, agora)
+        noticias, para_arquivo = coletar_noticias(cfg, agora)
         promocoes = coletar_promocoes(cfg)
+        if not dry_run:
+            novas = banco.arquivar(para_arquivo, substituir=False)
+            log.info("Arquivo de busca: %d notícias novas guardadas", novas)
 
         # Só o que ainda não foi enviado em dias anteriores
         vistos = banco.ja_enviados([n.link for n in noticias] + [p.link for p in promocoes])

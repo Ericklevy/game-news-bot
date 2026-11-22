@@ -68,26 +68,41 @@ class Banco:
                 [(link, tipo, titulo, agora) for link, tipo, titulo in itens],
             )
 
-    def arquivar(self, noticias) -> None:
-        """Guarda as notícias (título e resumo já traduzidos, quando houver)."""
+    def arquivar(self, noticias, substituir: bool = True) -> int:
+        """Guarda notícias no arquivo de busca. Devolve quantas entraram ou mudaram.
+
+        substituir=True  -> sobrescreve (usado para gravar a versão traduzida das enviadas);
+        substituir=False -> só acrescenta as novas (usado para o arquivo bruto, sem apagar traduções).
+        """
         agora = datetime.now(timezone.utc).isoformat(timespec="seconds")
+        modo = "INSERT OR REPLACE" if substituir else "INSERT OR IGNORE"
+        gravadas = 0
         with self.conexao:
-            self.conexao.executemany(
-                "INSERT OR REPLACE INTO noticias VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
-                [(n.link, n.titulo, n.resumo, n.fonte, ",".join(sorted(n.plataformas)),
-                  n.publicada_em.isoformat() if n.publicada_em else None, int(n.traduzida), agora)
-                 for n in noticias],
-            )
             for n in noticias:
+                cur = self.conexao.execute(
+                    f"{modo} INTO noticias VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+                    (n.link, n.titulo, n.resumo, n.fonte, ",".join(sorted(n.plataformas)),
+                     n.publicada_em.isoformat() if n.publicada_em else None, int(n.traduzida), agora),
+                )
+                if cur.rowcount == 0:
+                    continue
+                gravadas += 1
                 self.conexao.execute("DELETE FROM noticias_busca WHERE link = ?", (n.link,))
                 self.conexao.execute("INSERT INTO noticias_busca (link, titulo, resumo) VALUES (?, ?, ?)",
                                      (n.link, n.titulo, n.resumo))
+        return gravadas
 
-    def limpar_antigos(self, dias: int = 60) -> None:
+    def limpar_antigos(self, dias: int = 60, dias_arquivo: int = 180) -> None:
         with self.conexao:
             self.conexao.execute(
                 "DELETE FROM enviados WHERE enviado_em < datetime('now', ?)", (f"-{dias} days",)
             )
+            # O arquivo de busca guarda seis meses; depois disso some
+            self.conexao.execute(
+                "DELETE FROM noticias_busca WHERE link IN "
+                "(SELECT link FROM noticias WHERE salva_em < datetime('now', ?))", (f"-{dias_arquivo} days",)
+            )
+            self.conexao.execute("DELETE FROM noticias WHERE salva_em < datetime('now', ?)", (f"-{dias_arquivo} days",))
 
     def fechar(self) -> None:
         self.conexao.close()

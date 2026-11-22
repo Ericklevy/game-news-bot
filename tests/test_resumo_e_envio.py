@@ -67,8 +67,11 @@ def test_fluxo_completo_nao_reenvia_no_dia_seguinte(fixture, monkeypatch):
     assert "Old news" not in primeiro               # fora da janela de 30 h
     assert primeiro.count("Zelda") == 1             # mesmo assunto em dois sites
 
-    arquivadas = banco.conexao.execute("SELECT COUNT(*) FROM noticias").fetchone()[0]
-    assert arquivadas == primeiro.count("<a href=")
+    # O arquivo guarda TODAS as recentes (até a repetida de outro site), não só as enviadas
+    arquivadas = {l for (l,) in banco.conexao.execute("SELECT link FROM noticias")}
+    assert arquivadas == {"https://a.test/zelda", "https://b.test/zelda-2", "https://a.test/ps5",
+                          "https://a.test/layoffs", "https://b.test/gamepass"}
+    assert primeiro.count("<a href=") < len(arquivadas)
 
     segundo = executar(cfg, agora=agora)
     assert "Nada novo hoje" in segundo
@@ -81,3 +84,13 @@ def test_resumo_mostra_frase_traduzida():
     texto = resumo.montar([n, original], [])
     assert "A Sony reduziu o preço." in texto
     assert "Sony lowers the price." not in texto     # resumo em inglês não entra
+
+
+def test_arquivo_bruto_nao_apaga_a_traducao():
+    b = Banco(":memory:")
+    traduzida = Noticia("Zelda novo", "https://z", "IGN", resumo="Em português", traduzida=True)
+    original = Noticia("New Zelda", "https://z", "IGN", resumo="In English")
+    assert b.arquivar([traduzida]) == 1
+    assert b.arquivar([original], substituir=False) == 0       # já existe: não sobrescreve
+    assert b.conexao.execute("SELECT titulo FROM noticias").fetchone()[0] == "Zelda novo"
+    assert b.conexao.execute("SELECT COUNT(*) FROM noticias_busca").fetchone()[0] == 1

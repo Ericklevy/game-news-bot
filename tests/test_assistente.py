@@ -30,6 +30,11 @@ def banco():
     return b
 
 
+@pytest.fixture(autouse=True)
+def sem_ler_paginas(monkeypatch):
+    monkeypatch.setattr(assistente.pagina, "ler", lambda link: "")
+
+
 @pytest.fixture
 def com_chave(monkeypatch):
     for nome in ("OPENROUTER", "GROQ", "GEMINI", "SAMBANOVA"):
@@ -132,3 +137,30 @@ def test_comandos_novos_respondem_ao_dono():
     e.tratar({"update_id": 2, "message": {"chat": {"id": 7}, "text": "/semana"}})
     assert "resposta para: tem Zelda novo?" in respostas
     assert respostas[-1] == "ranking"
+
+
+@responses.activate
+def test_perguntar_le_as_materias_mais_relevantes(banco, com_chave):
+    ia_responde("A nota foi 99 [1].")
+    lidas = []
+
+    def ler(link):
+        lidas.append(link)
+        return f"texto completo de {link}"
+
+    assistente.perguntar("GTA 6", banco, com_chave, ler_materia=ler, materias=2)
+
+    assert len(lidas) == 2                          # só as 2 mais relevantes
+    enviado = json.loads(responses.calls[0].request.body)["messages"][1]["content"]
+    assert f"Trecho da matéria [1]:\ntexto completo de {lidas[0]}" in enviado
+
+
+@responses.activate
+def test_semana_usa_amostra_da_semana_toda(com_chave):
+    b = Banco(":memory:")
+    b.arquivar([n(f"Notícia {i} sobre Hollow Knight", f"https://a/{i}") for i in range(400)])
+    ia_responde('{"assuntos": [{"assunto": "Hollow Knight", "ids": [0, 1, 2]}]}')
+    texto = assistente.semana(b, com_chave)
+    titulos = json.loads(responses.calls[0].request.body)["messages"][1]["content"].splitlines()
+    assert len(titulos) <= 150
+    assert "400 notícias guardadas, amostra de" in texto
