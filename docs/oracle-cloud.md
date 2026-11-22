@@ -35,7 +35,17 @@ Se o Windows reclamar das permissões da chave, rode antes:
 icacls C:\Users\erick\Downloads\ssh-key.key /inheritance:r /grant:r "$($env:USERNAME):(R)"
 ```
 
-## 4. Instalar Docker e baixar o bot
+## 4. Instalar tudo com um comando
+
+Já dentro da máquina, rode:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/Ericklevy/game-news-bot/main/scripts/instalar-servidor.sh | bash
+```
+
+Ele cria a memória extra (swap), instala Docker e Git, baixa o bot e cria o `.env`. Depois, pule para o passo 5.
+
+## 4 (alternativa). Instalar Docker e baixar o bot passo a passo
 
 Já dentro da máquina:
 
