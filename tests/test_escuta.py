@@ -104,7 +104,7 @@ def test_erro_no_resumo_avisa_e_nao_derruba():
     e.rodar_resumo = quebra
     s.fila = [msg(1, "/agora")]
     e.passo()
-    assert any("Deu erro" in t for _, t in s.respostas)
+    assert any(t == "⚠️ O /agora falhou: RuntimeError. Veja os logs do servidor." for _, t in s.respostas)
     assert e.offset == 2
 
 

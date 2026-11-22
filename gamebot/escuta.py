@@ -112,9 +112,12 @@ class Escuta:
             self.offset = atualizacao["update_id"] + 1
             try:
                 self.tratar(atualizacao)
-            except Exception:  # um comando com erro não pode derrubar o bot
+            except Exception as erro:  # um comando com erro não pode derrubar o bot
                 log.exception("Erro ao tratar comando")
-                self.responder(self.chat_autorizado, "⚠️ Deu erro ao montar o resumo. Tento de novo depois.")
+                texto = ((atualizacao.get("message") or {}).get("text") or "").split()
+                comando = texto[0] if texto else "comando"
+                self.responder(self.chat_autorizado,
+                               f"⚠️ O {comando} falhou: {type(erro).__name__}. Veja os logs do servidor.")
 
     def rodar(self) -> None:
         log.info("Bot escutando comandos. Resumo diário às %s.", self.hora_diaria.strftime("%H:%M"))
