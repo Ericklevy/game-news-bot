@@ -83,6 +83,18 @@ Com o servidor ligado, o resumo diário sai dele. Para não receber dois resumos
 **Actions → Resumo diário → botão `···` → Disable workflow**.
 Se um dia o servidor sair do ar, é só reativar.
 
+## Atualização automática
+
+A máquina confere o GitHub a cada 10 minutos. Quando há versão nova **e o CI dela passou**, ela baixa, reconstrói o bot e manda "🔄 Bot atualizado" no seu Telegram. Se os testes falharem, ela não atualiza.
+
+O instalador já liga isso. Numa máquina instalada antes, ligue uma vez com:
+
+```bash
+bash ~/game-news-bot/scripts/instalar-atualizacao-automatica.sh
+```
+
+Para acompanhar: `journalctl -u game-news-bot-atualizar -n 20`.
+
 ## Comandos úteis
 
 | O que fazer | Comando |

@@ -4,7 +4,7 @@
 #   curl -fsSL https://raw.githubusercontent.com/Ericklevy/game-news-bot/main/scripts/instalar-servidor.sh | bash
 set -euo pipefail
 
-echo "==> 1/4 Memória extra (swap de 2 GB), importante em máquinas de 1 GB"
+echo "==> 1/5 Memória extra (swap de 2 GB), importante em máquinas de 1 GB"
 if ! swapon --show | grep -q /swapfile; then
   sudo fallocate -l 2G /swapfile
   sudo chmod 600 /swapfile
@@ -15,20 +15,23 @@ else
   echo "    swap já existe, pulando"
 fi
 
-echo "==> 2/4 Instalando Docker e Git"
+echo "==> 2/5 Instalando Docker e Git"
 sudo apt-get update -qq
 sudo DEBIAN_FRONTEND=noninteractive apt-get install -y -qq docker.io docker-compose-v2 git >/dev/null
 sudo systemctl enable --now docker >/dev/null
 sudo usermod -aG docker "$USER"
 
-echo "==> 3/4 Baixando o bot"
+echo "==> 3/5 Baixando o bot"
 if [ -d "$HOME/game-news-bot/.git" ]; then
   git -C "$HOME/game-news-bot" pull -q
 else
   git clone -q https://github.com/Ericklevy/game-news-bot.git "$HOME/game-news-bot"
 fi
 
-echo "==> 4/4 Criando o arquivo de configuração"
+echo "==> 4/5 Ligando a atualização automática (a cada 10 minutos)"
+bash "$HOME/game-news-bot/scripts/instalar-atualizacao-automatica.sh" >/dev/null
+
+echo "==> 5/5 Criando o arquivo de configuração"
 cd "$HOME/game-news-bot"
 if [ ! -f .env ]; then
   cp .env.example .env

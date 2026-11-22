@@ -90,7 +90,7 @@ Para outras pessoas receberem o resumo, crie um canal público no Telegram, adic
 ```
 TELEGRAM_CHAT_ID=@NomeDoCanal     # o resumo vai para o canal
 TELEGRAM_ADMIN_ID=123456789       # o id do seu chat: só você dá comandos
-``` O passo a passo para deixar o bot ligado 24 horas de graça está em [docs/oracle-cloud.md](docs/oracle-cloud.md).
+``` O passo a passo para deixar o bot ligado 24 horas de graça está em [docs/oracle-cloud.md](docs/oracle-cloud.md). No servidor, um timer do systemd confere o GitHub a cada 10 minutos e se atualiza sozinho quando há versão nova com o CI aprovado (entrega contínua por *pull*, sem abrir portas nem guardar a chave do servidor no GitHub).
 
 ## Configuração
 
