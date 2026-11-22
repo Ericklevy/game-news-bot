@@ -7,6 +7,8 @@ Bot que monta todo dia um **resumo de notícias e promoções de games** e envia
 ![GitHub Actions](https://img.shields.io/badge/GitHub%20Actions-agendado-2088FF?style=flat-square&logo=githubactions&logoColor=white)
 ![Docker](https://img.shields.io/badge/Docker-pronto-2496ED?style=flat-square&logo=docker&logoColor=white)
 
+**📢 Veja funcionando:** [t.me/ResumoGamerBR](https://t.me/ResumoGamerBR)
+
 ## Como fica a mensagem
 
 ```
