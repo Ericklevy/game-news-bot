@@ -61,3 +61,11 @@ def dividir(texto: str, limite: int = LIMITE_TELEGRAM) -> list[str]:
     if atual:
         blocos.append(atual)
     return blocos
+
+
+def montar_promocoes(promocoes: list[Promocao]) -> str:
+    """Mensagem do /promocoes: só as ofertas, sem notícias e sem IA."""
+    if not promocoes:
+        return "💸 Nenhuma promoção boa agora (ou a loja de ofertas não respondeu). Tente mais tarde."
+    texto = montar([], promocoes)
+    return texto.split("\n\n", 1)[1]   # tira o cabeçalho do resumo diário

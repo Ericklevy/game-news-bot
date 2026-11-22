@@ -94,3 +94,30 @@ def test_arquivo_bruto_nao_apaga_a_traducao():
     assert b.arquivar([original], substituir=False) == 0       # já existe: não sobrescreve
     assert b.conexao.execute("SELECT titulo FROM noticias").fetchone()[0] == "Zelda novo"
     assert b.conexao.execute("SELECT COUNT(*) FROM noticias_busca").fetchone()[0] == 1
+
+
+def test_avisos_quando_fonte_e_ia_falham(fixture, monkeypatch):
+    for nome in ("OPENROUTER", "GROQ", "GEMINI", "SAMBANOVA"):
+        monkeypatch.delenv(f"{nome}_API_KEY", raising=False)
+    monkeypatch.setenv("GROQ_API_KEY", "x")
+    import gamebot.__main__ as m
+    monkeypatch.setattr(m.ia, "traduzir", lambda noticias, provedores: noticias)   # simula IA falhando
+    monkeypatch.setattr(m, "coletar_promocoes", lambda cfg: [])
+    cfg = Config(feeds={"A": str(fixture("feed_a.xml")), "Quebrado": "nao é feed <<<"}, banco=":memory:",
+                 promocoes_ativas=True)
+    avisos = []
+    executar(cfg, dry_run=True, agora=datetime(2026, 11, 21, 12, tzinfo=timezone.utc), avisos=avisos)
+    assert "A fonte Quebrado não respondeu ou veio vazia." in avisos
+    assert any("promoções" in a for a in avisos)
+    assert any("tradução falhou" in a for a in avisos)
+
+
+@responses.activate
+def test_menu_de_comandos_so_no_chat_do_dono():
+    import json as _json
+    responses.post("https://api.telegram.org/botT/setMyCommands", json={"ok": True})
+    telegram.definir_comandos("T", [("agora", "Publica")], chat_id="700")
+    corpo = dict(x.split("=", 1) for x in responses.calls[0].request.body.split("&"))
+    from urllib.parse import unquote_plus
+    assert _json.loads(unquote_plus(corpo["scope"])) == {"type": "chat", "chat_id": "700"}
+    assert _json.loads(unquote_plus(corpo["commands"])) == [{"command": "agora", "description": "Publica"}]

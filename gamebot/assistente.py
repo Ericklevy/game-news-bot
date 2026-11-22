@@ -154,3 +154,40 @@ def semana(banco: Banco, provedores: list[ia.Provedor], dias: int = 7, agora: da
         )
     partes.append("<i>Dica: os primeiros da lista são bons candidatos para vídeo.</i>")
     return "\n\n".join(partes)
+
+
+SISTEMA_ROTEIRO = (
+    "Você ajuda um criador a preparar um vídeo curto para o YouTube sobre as notícias de games da semana. "
+    "Escreva em português do Brasil, em tom de conversa, um RASCUNHO de roteiro de 3 a 5 minutos com: "
+    "ABERTURA (1 a 2 frases), de 3 a 5 NOTÍCIAS escolhidas entre os assuntos que mais aparecem na lista "
+    "(cada uma com um título curto e 2 a 3 frases de fala), PROMOÇÃO DA SEMANA (se houver promoções na "
+    "lista) e ENCERRAMENTO com uma chamada para comentar. Use SOMENTE as informações fornecidas, explique "
+    "com suas palavras e cite a notícia usada pelo número entre colchetes, por exemplo [4]. "
+    "Não use markdown; separe as partes com linhas em branco e escreva o nome de cada parte em MAIÚSCULAS."
+)
+
+
+def roteiro(banco: Banco, provedores: list[ia.Provedor], promocoes=None, dias: int = 7) -> str:
+    """Rascunho de roteiro de vídeo com a semana (1 chamada de IA)."""
+    todos = recentes(banco, dias=dias, limite=5000)
+    passo = max(1, -(-len(todos) // 120))
+    registros = todos[::passo][:120]
+    if len(registros) < 3:
+        return "🎬 Ainda tenho poucas notícias guardadas para um roteiro. Volte depois de alguns resumos."
+
+    lista = "\n".join(f"[{i}] {r.titulo} ({r.fonte})" for i, r in enumerate(registros, 1))
+    ofertas = ""
+    if promocoes:
+        ofertas = "\n\nPromoções:\n" + "\n".join(
+            f"- {p.jogo}: {'grátis' if p.gratis else f'-{p.desconto}% por US$ {p.preco_promocional:.2f}'} na {p.loja}"
+            for p in promocoes[:5])
+    try:
+        texto = ia.completar(provedores, SISTEMA_ROTEIRO, f"Notícias da semana:\n{lista}{ofertas}",
+                             temperatura=0.6, timeout=90)
+    except ia.FalhaIA as erro:
+        log.warning("Sem IA para o /roteiro: %s", erro)
+        return "🎬 A IA não respondeu agora. Tente o /roteiro de novo daqui a pouco."
+
+    citadas = sorted({int(n) for n in re.findall(r"\[(\d+)\]", texto) if 1 <= int(n) <= len(registros)})
+    rodape = ("\n\n<b>Fontes para citar no vídeo</b>\n" + _links(registros, citadas)) if citadas else ""
+    return (f"🎬 <b>Rascunho de roteiro</b> (revise e fale com as suas palavras)\n\n{escape(texto)}{rodape}")

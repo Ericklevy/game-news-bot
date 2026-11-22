@@ -67,11 +67,19 @@ No modo servidor (`python -m gamebot --escutar`), o bot fica ligado e responde:
 
 | Comando | O que faz |
 |---|---|
-| `/agora` | Busca e envia as novidades na hora |
+| `/agora` | Publica no canal as novidades deste momento |
+| `/promocoes` | Mostra as promoções de PC na hora (sem IA) |
 | `/perguntar <pergunta>` | Responde com base nas notícias guardadas, citando as fontes (RAG) |
 | `/semana` | Ranking dos assuntos mais falados nos últimos 7 dias |
+| `/roteiro` | Rascunho de roteiro de vídeo com as notícias da semana, com as fontes para citar |
 | `/status` | Mostra quando foi o último resumo |
 | `/ajuda` | Lista os comandos |
+
+Ao digitar `/` na conversa com o bot, o Telegram mostra esse menu com as descrições.
+
+**Agenda automática** (no `config.yaml`): resumo em vários horários por dia (padrão 8h17, 13h17 e 19h17) e ranking da semana publicado no canal aos domingos. Se o bot reiniciar, ele não repete o que já publicou, e, se ficar fora do ar por horas, publica uma vez só ao voltar.
+
+**Alertas:** quando um site não responde, as promoções falham ou a tradução cai em todos os provedores de IA, o bot avisa no chat do dono, no máximo uma vez por dia por problema.
 
 Só o chat em `TELEGRAM_ADMIN_ID` (ou, se ele estiver vazio, o `TELEGRAM_CHAT_ID`) pode usar os comandos, para ninguém gastar a sua cota de IA.
 
@@ -126,13 +134,12 @@ pip install -r requirements-dev.txt
 pytest -q
 ```
 
-São 62 testes, que rodam sem internet, usando feeds e respostas de API salvos em `tests/fixtures`. Eles cobrem a detecção de plataforma, a junção de notícias repetidas, os filtros, as promoções (inclusive com a API fora do ar), a tradução (troca de provedor, resposta incompleta, nenhuma chave e chave fora dos logs), a formatação e a divisão da mensagem, o envio com erro o fluxo completo sem reenviar no dia seguinte e o modo servidor (comandos, chat não autorizado, horário do resumo diário e reinício sem repetir o resumo). O CI roda tudo a cada push.
+São 73 testes, que rodam sem internet, usando feeds e respostas de API salvos em `tests/fixtures`. Eles cobrem a detecção de plataforma, a junção de notícias repetidas, os filtros, as promoções (inclusive com a API fora do ar), a tradução (troca de provedor, resposta incompleta, nenhuma chave e chave fora dos logs), a formatação e a divisão da mensagem, o envio com erro o fluxo completo sem reenviar no dia seguinte e o modo servidor (comandos, chat não autorizado, horário do resumo diário e reinício sem repetir o resumo). O CI roda tudo a cada push.
 
 ## Próximos passos
 
 - Comandos no bot, como `/promocoes` e `/noticias zelda`, com busca no histórico.
 - Promoções de console (PlayStation Store, eShop e Xbox), que hoje não têm uma API pública simples.
-- `/roteiro`: rascunho de roteiro de vídeo com as notícias da semana.
 - Busca por significado (embeddings) no `/perguntar`.
 
 ## Estrutura

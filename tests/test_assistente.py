@@ -164,3 +164,20 @@ def test_semana_usa_amostra_da_semana_toda(com_chave):
     titulos = json.loads(responses.calls[0].request.body)["messages"][1]["content"].splitlines()
     assert len(titulos) <= 150
     assert "400 notícias guardadas, amostra de" in texto
+
+
+@responses.activate
+def test_roteiro_traz_fontes_e_promocao(banco, com_chave):
+    from gamebot.models import Promocao
+    ia_responde("ABERTURA\nFala galera!\n\nNOTÍCIA 1\nGTA 6 levou 99 [1].\n\nPROMOÇÃO DA SEMANA\nHades barato.")
+    texto = assistente.roteiro(banco, com_chave, [Promocao("Hades", "Steam", 24.99, 6.24, "https://h")])
+    assert texto.startswith("🎬 <b>Rascunho de roteiro</b>")
+    assert "Fontes para citar no vídeo" in texto and texto.count("<a href=") == 1
+    enviado = json.loads(responses.calls[0].request.body)["messages"][1]["content"]
+    assert "Hades: -75% por US$ 6.24 na Steam" in enviado
+
+
+@responses.activate
+def test_roteiro_sem_ia_avisa(banco, com_chave):
+    responses.post(URL, status=503)
+    assert "A IA não respondeu" in assistente.roteiro(banco, com_chave)

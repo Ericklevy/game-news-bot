@@ -50,3 +50,17 @@ def atualizacoes(token: str, offset: int | None, espera: int = 50,
     if not corpo.get("ok"):
         raise ErroTelegram(f"getUpdates falhou ({resp.status_code}): {corpo.get('description', 'sem detalhe')}")
     return corpo.get("result", [])
+
+
+def definir_comandos(token: str, comandos: list[tuple[str, str]], chat_id: str | None = None,
+                     sessao: requests.Session | None = None) -> None:
+    """Cadastra o menu que aparece ao digitar "/" no Telegram (só no chat do dono, se chat_id vier)."""
+    import json
+    sessao = sessao or requests.Session()
+    corpo = {"commands": [{"command": c, "description": d} for c, d in comandos]}
+    if chat_id:
+        corpo["scope"] = {"type": "chat", "chat_id": chat_id}
+    resp = sessao.post(API.format(token=token).replace("sendMessage", "setMyCommands"),
+                       data={k: json.dumps(v) for k, v in corpo.items()}, timeout=20)
+    if not (resp.headers.get("content-type", "").startswith("application/json") and resp.json().get("ok")):
+        raise ErroTelegram(f"setMyCommands falhou ({resp.status_code})")

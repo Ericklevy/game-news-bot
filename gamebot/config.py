@@ -27,7 +27,8 @@ class Config:
     max_por_fonte: int = 3
     plataforma_por_feed: dict[str, str] = field(default_factory=dict)
     ia: dict = field(default_factory=dict)
-    hora_diaria: str = "08:17"
+    horarios_diarios: list[str] = field(default_factory=lambda: ["08:17"])
+    semanal: dict = field(default_factory=lambda: {"ativo": True, "dia": "domingo", "hora": "10:17"})
 
 
 def carregar(caminho: str | Path = "config.yaml") -> Config:
@@ -47,7 +48,10 @@ def carregar(caminho: str | Path = "config.yaml") -> Config:
         plataforma_por_feed=plataforma_por_feed,
         max_por_fonte=int(dados.get("max_por_fonte", 3)),
         ia=dados.get("ia") or {},
-        hora_diaria=str(dados.get("hora_diaria", "08:17")),
+        # Aceita a opção antiga (hora_diaria: "08:17") e a nova (horarios_diarios: [...])
+        horarios_diarios=[str(h) for h in (dados.get("horarios_diarios")
+                                           or [dados.get("hora_diaria", "08:17")])],
+        semanal={"ativo": True, "dia": "domingo", "hora": "10:17", **(dados.get("semanal") or {})},
         plataformas=set(dados.get("plataformas") or []),
         incluir_gerais=bool(dados.get("incluir_gerais", True)),
         max_noticias=int(dados.get("max_noticias", 8)),
