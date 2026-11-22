@@ -61,6 +61,7 @@ def buscar(desconto_minimo: int = 50, nota_minima: int = 70, limite: int = 30,
                 preco_promocional=float(o["salePrice"]),
                 link=LINK_OFERTA.format(o["dealID"]),
                 nota_metacritic=int(o["metacriticScore"]) or None,
+                jogo_id=str(o.get("gameID", "")),
             )
         except (KeyError, ValueError):
             continue
@@ -68,3 +69,18 @@ def buscar(desconto_minimo: int = 50, nota_minima: int = 70, limite: int = 30,
             promocoes.append(p)
     log.info("Promoções: %d com %d%%+ de desconto", len(promocoes), desconto_minimo)
     return promocoes
+
+
+def menores_precos(jogo_ids: list[str], sessao: requests.Session | None = None) -> dict[str, float]:
+    """Menor preço da história de cada jogo (até 25 por chamada, regra da API)."""
+    sessao = sessao or requests.Session()
+    resultado: dict[str, float] = {}
+    ids = [i for i in dict.fromkeys(jogo_ids) if i]
+    for inicio in range(0, len(ids), 25):
+        dados = _get(sessao, "games", ids=",".join(ids[inicio:inicio + 25]))
+        for jogo_id, jogo in (dados or {}).items():
+            try:
+                resultado[str(jogo_id)] = float(jogo["cheapestPriceEver"]["price"])
+            except (KeyError, TypeError, ValueError):
+                continue
+    return resultado

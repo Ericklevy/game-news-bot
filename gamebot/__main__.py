@@ -6,7 +6,7 @@ import logging
 import sys
 from datetime import UTC, datetime, timedelta
 
-from gamebot import filtros, ia, resumo, telegram
+from gamebot import filtros, ia, ofertas, resumo, telegram
 from gamebot.banco import Banco, guardar_vetores, titulos_enviados
 from gamebot.config import Config, carregar
 from gamebot.models import Noticia, Promocao
@@ -64,6 +64,10 @@ def executar(cfg: Config, dry_run: bool = False, agora: datetime | None = None,
         noticias = filtros.limitar_por_fonte(noticias, cfg.max_por_fonte)[: cfg.max_noticias]
         promocoes = [p for p in promocoes if p.link not in vistos
                      and filtros.normalizar(p.jogo) not in jogos_recentes][: cfg.max_promocoes]
+        promocoes = ofertas.enriquecer(banco, promocoes, avisos, registrar=not dry_run)
+        gratis = ofertas.jogos_gratis(banco, avisos=avisos) if cfg.promocoes_ativas else []
+        gratis_vistos = banco.ja_enviados([g.link for g in gratis])
+        gratis = [g for g in gratis if g.link not in gratis_vistos]
         titulos_originais = {n.link: n.titulo for n in noticias}   # guardados antes da tradução
 
         # Traduz só o que vai ser enviado (uma chamada de IA por dia)
@@ -73,7 +77,7 @@ def executar(cfg: Config, dry_run: bool = False, agora: datetime | None = None,
             if noticias and any(p.chave for p in provedores) and not any(n.traduzida for n in noticias):
                 avisos.append("A tradução falhou em todos os provedores de IA: o resumo saiu em inglês.")
 
-        texto = resumo.montar(noticias, promocoes, agora.date())
+        texto = resumo.montar(noticias, promocoes, agora.date(), gratis)
         if dry_run:
             print(texto)
             return texto
@@ -84,7 +88,8 @@ def executar(cfg: Config, dry_run: bool = False, agora: datetime | None = None,
                         previa=noticias[0].link if noticias and cfg.previa_primeira else None)
         # O título original (em inglês) é o que se compara com as próximas coletas
         banco.marcar([(n.link, "noticia", titulos_originais.get(n.link, n.titulo)) for n in noticias] +
-                     [(p.link, "promocao", p.jogo) for p in promocoes])
+                     [(p.link, "promocao", p.jogo) for p in promocoes] +
+                     [(g.link, "gratis", g.titulo) for g in gratis])
         banco.arquivar(noticias)
         # Busca por significado: vetores só das enviadas, numa chamada só
         vetores = ia.vetorizar([f"{n.titulo}. {n.resumo}" for n in noticias], ia.montar_embeddings(cfg.ia))
@@ -138,7 +143,10 @@ def escutar(cfg: Config) -> None:
         return texto
 
     def promocoes() -> str:
-        return resumo.montar_promocoes(coletar_promocoes(cfg)[: cfg.max_promocoes])
+        def montar(b):
+            lista = ofertas.enriquecer(b, coletar_promocoes(cfg)[: cfg.max_promocoes], registrar=False)
+            return resumo.montar_promocoes(lista, ofertas.jogos_gratis(b))
+        return _com_banco(cfg, montar)
 
     semanal = None
     if cfg.semanal.get("ativo"):

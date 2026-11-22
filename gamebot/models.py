@@ -25,6 +25,14 @@ class Promocao:
     link: str
     nota_metacritic: int | None = None
     plataformas: frozenset[str] = field(default_factory=lambda: frozenset({"PC"}))
+    jogo_id: str = ""                    # gameID da CheapShark
+    menor_preco: float | None = None     # menor preço da história (CheapShark)
+    preco_anterior: float | None = None  # maior preço que o bot viu nos últimos 30 dias
+    cotacao_brl: float | None = None     # dólar em reais, para mostrar o preço aproximado
+
+    @property
+    def menor_da_historia(self) -> bool:
+        return self.menor_preco is not None and self.preco_promocional <= self.menor_preco + 0.001
 
     @property
     def desconto(self) -> int:
@@ -36,3 +44,14 @@ class Promocao:
     @property
     def gratis(self) -> bool:
         return self.preco_promocional == 0
+
+
+@dataclass(frozen=True)
+class Gratis:
+    """Jogo ou DLC dado de graça por tempo limitado (dados da GamerPower)."""
+    titulo: str
+    link: str
+    plataformas: str
+    tipo: str                     # Game, DLC...
+    valor: str = ""               # preço normal, ex.: "$19.99"
+    termina_em: str | None = None # "AAAA-MM-DD" ou None se não tem data

@@ -168,5 +168,18 @@ gamebot/
 ├── telegram.py      envio e leitura de mensagens pela Bot API
 └── sources/
     ├── rss.py       leitura dos feeds
-    └── promocoes.py API da CheapShark
+    ├── promocoes.py API da CheapShark (ofertas e menor preço da história)
+    ├── gratis.py    API da GamerPower (jogos grátis por tempo limitado)
+    └── cambio.py    API Frankfurter (dólar em reais)
 ```
+
+## Promoções turbinadas (sem custo extra)
+
+Cada promoção mostra o preço aproximado em reais (cotação da Frankfurter), avisa quando é o
+🔥 menor preço da história (CheapShark) e quando 📉 caiu em relação ao que o bot viu nos últimos
+30 dias (histórico guardado no SQLite). Uma seção 🎁 lista jogos grátis para resgatar, via GamerPower.
+
+Todas as APIs são públicas e sem chave. Para gastar o mínimo de chamadas:
+
+- **Cache com validade:** cotação 6 h, jogos grátis 3 h, menor preço histórico 7 dias.
+- **Circuit breaker:** uma fonte que falha 3 vezes seguidas fica 6 h em pausa, e o dono recebe um alerta.

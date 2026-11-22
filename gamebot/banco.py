@@ -27,6 +27,30 @@ CREATE TABLE IF NOT EXISTS noticias (
     salva_em    TEXT NOT NULL
 );
 
+-- Cache com validade (cotação, jogos grátis, menor preço histórico...)
+CREATE TABLE IF NOT EXISTS cache (
+    chave     TEXT PRIMARY KEY,
+    valor     TEXT NOT NULL,          -- JSON
+    expira_em TEXT NOT NULL
+);
+
+-- Circuit breaker: fontes que falharam seguidas ficam em pausa por um tempo
+CREATE TABLE IF NOT EXISTS circuito (
+    fonte      TEXT PRIMARY KEY,
+    falhas     INTEGER NOT NULL DEFAULT 0,
+    aberto_ate TEXT
+);
+
+-- Histórico dos preços vistos nas promoções
+CREATE TABLE IF NOT EXISTS precos (
+    jogo     TEXT NOT NULL,           -- gameID da CheapShark
+    titulo   TEXT NOT NULL,
+    loja     TEXT NOT NULL,
+    preco    REAL NOT NULL,
+    visto_em TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_precos_jogo ON precos (jogo, visto_em);
+
 -- Vetores (embeddings) das notícias enviadas, para a busca por significado
 CREATE TABLE IF NOT EXISTS vetores (
     link   TEXT PRIMARY KEY,
@@ -111,6 +135,8 @@ class Banco:
             )
             self.conexao.execute("DELETE FROM noticias WHERE salva_em < datetime('now', ?)", (f"-{dias_arquivo} days",))
             self.conexao.execute("DELETE FROM vetores WHERE link NOT IN (SELECT link FROM noticias)")
+            self.conexao.execute("DELETE FROM cache WHERE expira_em < datetime('now')")
+            self.conexao.execute("DELETE FROM precos WHERE visto_em < datetime('now', '-120 days')")
 
     def fechar(self) -> None:
         self.conexao.close()
