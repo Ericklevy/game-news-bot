@@ -83,10 +83,11 @@ def escutar(cfg: Config) -> None:
     Escuta(
         ultimo_diario=marca.read_text().strip() if marca.exists() else None,
         salvar_diario=marca.write_text,
-        chat_autorizado=cfg.telegram_chat_id,
+        chat_autorizado=cfg.telegram_admin_id,
         buscar=lambda offset: telegram.atualizacoes(cfg.telegram_token, offset),
         responder=lambda chat, texto: telegram.enviar(cfg.telegram_token, chat, texto),
         rodar_resumo=lambda: executar(cfg),
+        destino=cfg.telegram_chat_id,
         hora_diaria=hora_do_dia(h, m),
     ).rodar()
 

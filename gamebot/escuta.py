@@ -16,7 +16,7 @@ log = logging.getLogger(__name__)
 
 AJUDA = (
     "🕹️ <b>Resumo Gamer</b>\n\n"
-    "/agora — notícias e promoções novas neste momento\n"
+    "/agora — publica as novidades deste momento\n"
     "/status — quando foi o último resumo\n"
     "/ajuda — esta mensagem\n\n"
     "Todo dia às {hora} o resumo chega sozinho."
@@ -37,6 +37,7 @@ class Escuta:
     ultimo_envio: datetime | None = None
     offset: int | None = None
     salvar_diario: Callable[[str], None] = lambda data: None   # guarda a data para sobreviver a reinícios
+    destino: str = ""                                          # onde o resumo é publicado (para avisar o dono)
 
     def __post_init__(self):
         if self.relogio is None:
@@ -72,6 +73,8 @@ class Escuta:
         elif comando == "/agora":
             self.responder(chat, "🔎 Buscando as novidades…")
             self.enviar_resumo("pedido no /agora")
+            if self.destino and self.destino != chat:
+                self.responder(chat, f"✅ Resumo publicado em {self.destino}.")
         elif comando == "/status":
             if self.ultimo_envio:
                 quando = self.ultimo_envio.astimezone(self.fuso).strftime("%d/%m às %Hh%M")

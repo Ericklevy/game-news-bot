@@ -68,7 +68,16 @@ No modo servidor (`python -m gamebot --escutar`), o bot fica ligado e responde:
 | `/status` | Mostra quando foi o último resumo |
 | `/ajuda` | Lista os comandos |
 
-Só o chat configurado em `TELEGRAM_CHAT_ID` pode usar os comandos, para ninguém gastar a sua cota de IA. O passo a passo para deixar o bot ligado 24 horas de graça está em [docs/oracle-cloud.md](docs/oracle-cloud.md).
+Só o chat em `TELEGRAM_ADMIN_ID` (ou, se ele estiver vazio, o `TELEGRAM_CHAT_ID`) pode usar os comandos, para ninguém gastar a sua cota de IA.
+
+### Publicar num canal
+
+Para outras pessoas receberem o resumo, crie um canal público no Telegram, adicione o bot como **administrador** (com permissão de postar) e configure:
+
+```
+TELEGRAM_CHAT_ID=@NomeDoCanal     # o resumo vai para o canal
+TELEGRAM_ADMIN_ID=123456789       # o id do seu chat: só você dá comandos
+``` O passo a passo para deixar o bot ligado 24 horas de graça está em [docs/oracle-cloud.md](docs/oracle-cloud.md).
 
 ## Configuração
 

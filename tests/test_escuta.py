@@ -114,3 +114,23 @@ def test_status_depois_de_um_envio():
     s.fila = [msg(1, "/agora"), msg(2, "/status")]
     e.passo()
     assert s.respostas[-1] == (DONO, "✅ Estou no ar. Último resumo: 21/11 às 09h30.")
+
+
+def test_com_canal_comandos_continuam_so_com_o_dono():
+    s = Simulador()
+    e = s.escuta(destino="@ResumoGamerBR")
+    s.fila = [msg(1, "/agora"), msg(2, "/agora", chat="-100123")]   # o canal/estranho não comanda
+    e.passo()
+    assert s.resumos == 1
+    assert (DONO, "✅ Resumo publicado em @ResumoGamerBR.") in s.respostas
+
+
+def test_admin_cai_para_o_chat_quando_vazio(monkeypatch, tmp_path):
+    from gamebot.config import carregar
+    cfg_yaml = tmp_path / "c.yaml"
+    cfg_yaml.write_text("feeds: {}\n")
+    monkeypatch.setenv("TELEGRAM_CHAT_ID", "@ResumoGamerBR")
+    monkeypatch.delenv("TELEGRAM_ADMIN_ID", raising=False)
+    assert carregar(cfg_yaml).telegram_admin_id == "@ResumoGamerBR"
+    monkeypatch.setenv("TELEGRAM_ADMIN_ID", "700")
+    assert carregar(cfg_yaml).telegram_admin_id == "700"

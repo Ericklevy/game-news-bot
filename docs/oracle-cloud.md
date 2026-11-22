@@ -53,7 +53,8 @@ cp .env.example .env
 nano .env
 ```
 
-Preencha `TELEGRAM_TOKEN`, `TELEGRAM_CHAT_ID` e as chaves de IA que tiver. Salve com `Ctrl+O`, `Enter` e saia com `Ctrl+X`.
+Preencha `TELEGRAM_TOKEN`, `TELEGRAM_CHAT_ID` e as chaves de IA que tiver.
+Se o resumo for para um canal, use `TELEGRAM_CHAT_ID=@NomeDoCanal` e coloque o id do seu chat em `TELEGRAM_ADMIN_ID`. Salve com `Ctrl+O`, `Enter` e saia com `Ctrl+X`.
 O `.env` fica só na máquina: ele está no `.gitignore` e nunca vai para o GitHub.
 
 ## 6. Ligar o bot

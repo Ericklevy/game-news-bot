@@ -21,7 +21,8 @@ class Config:
     desconto_minimo: int = 60
     nota_minima: int = 75
     telegram_token: str = ""
-    telegram_chat_id: str = ""
+    telegram_chat_id: str = ""      # para onde vai o resumo (seu chat ou um canal, ex.: @ResumoGamerBR)
+    telegram_admin_id: str = ""     # quem pode dar comandos (/agora); se vazio, usa o telegram_chat_id
     banco: str = "data/gamebot.db"
     max_por_fonte: int = 3
     plataforma_por_feed: dict[str, str] = field(default_factory=dict)
@@ -58,5 +59,6 @@ def carregar(caminho: str | Path = "config.yaml") -> Config:
         nota_minima=int(promo.get("nota_metacritic_minima", 75)),
         telegram_token=os.getenv("TELEGRAM_TOKEN", ""),
         telegram_chat_id=os.getenv("TELEGRAM_CHAT_ID", ""),
+        telegram_admin_id=os.getenv("TELEGRAM_ADMIN_ID", "") or os.getenv("TELEGRAM_CHAT_ID", ""),
         banco=os.getenv("GAMEBOT_DB", "data/gamebot.db"),
     )
