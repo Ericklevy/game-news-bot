@@ -87,7 +87,8 @@ def test_diario_sai_uma_vez_por_dia_depois_do_horario():
     e.passo()
     assert s.resumos == 0                      # ainda não deu 8h17
     s.agora = datetime(2026, 11, 21, 8, 20, tzinfo=SP)
-    e.passo(); e.passo()
+    e.passo()
+    e.passo()
     assert s.resumos == 1 and "2026-11-21 08:17" in s.salvo
     s.agora = datetime(2026, 11, 22, 8, 18, tzinfo=SP)
     e.passo()
@@ -138,7 +139,8 @@ def test_ranking_semanal_no_dia_e_hora_certos():
     e.passo()
     assert s.semanais == 0
     s.agora = datetime(2026, 11, 22, 10, 20, tzinfo=SP)
-    e.passo(); e.passo()
+    e.passo()
+    e.passo()
     assert s.semanais == 1
     s.agora = datetime(2026, 11, 23, 10, 20, tzinfo=SP)  # segunda-feira
     e.passo()

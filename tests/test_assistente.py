@@ -1,5 +1,5 @@
 import json
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 import pytest
 import responses
@@ -13,7 +13,7 @@ URL = ia.PADRAO["openrouter"].url
 
 
 def n(titulo, link, fonte="IGN", resumo=""):
-    return Noticia(titulo, link, fonte, publicada_em=datetime(2026, 11, 21, tzinfo=timezone.utc),
+    return Noticia(titulo, link, fonte, publicada_em=datetime(2026, 11, 21, tzinfo=UTC),
                    resumo=resumo, traduzida=True)
 
 

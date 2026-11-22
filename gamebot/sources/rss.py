@@ -4,7 +4,7 @@ from __future__ import annotations
 import html
 import logging
 import re
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 import feedparser
 
@@ -25,7 +25,7 @@ def _data(entrada) -> datetime | None:
     struct = entrada.get("published_parsed") or entrada.get("updated_parsed")
     if not struct:
         return None
-    return datetime(*struct[:6], tzinfo=timezone.utc)
+    return datetime(*struct[:6], tzinfo=UTC)
 
 
 def ler_feed(nome: str, url_ou_xml: str, plataforma_padrao: str | None = None) -> list[Noticia]:

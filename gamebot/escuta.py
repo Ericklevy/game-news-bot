@@ -15,7 +15,8 @@ import re
 import time
 from collections.abc import Callable
 from dataclasses import dataclass, field
-from datetime import datetime, timedelta, time as hora_do_dia
+from datetime import datetime, timedelta
+from datetime import time as hora_do_dia
 from zoneinfo import ZoneInfo
 
 log = logging.getLogger(__name__)
@@ -30,6 +31,7 @@ COMANDOS = [
     ("semana", "Ranking dos assuntos mais falados na semana"),
     ("roteiro", "Rascunho de roteiro de vídeo com a semana"),
     ("status", "Mostra se o bot está no ar e a agenda"),
+    ("backup", "Manda agora uma cópia do banco de notícias"),
     ("ajuda", "Lista os comandos"),
 ]
 
@@ -59,6 +61,11 @@ class Escuta:
     semana: Callable[[], str] | None = None
     promocoes: Callable[[], str] | None = None
     roteiro: Callable[[], str] | None = None
+    backup: tuple[int, hora_do_dia] | None = None          # (dia da semana, hora) do backup automático
+    fazer_backup: Callable[[], None] | None = None          # manda a cópia do banco para o dono
+    batimento: Callable[[], None] | None = None             # "estou vivo" para um monitor externo
+    intervalo_batimento: float = 300.0
+    _ultimo_batimento: float = field(default=-1e9, repr=False)
 
     def __post_init__(self):
         if self.relogio is None:
@@ -93,15 +100,33 @@ class Escuta:
                 self.responder(self.chat_autorizado, "⚠️ O resumo agendado falhou. Use /agora para tentar de novo.")
 
         if self.semanal and self.publicar_semana:
-            dia, hora = self.semanal
-            chave = f"semana {agora.date().isoformat()}"
-            if agora.weekday() == dia and agora.time() >= hora and chave not in self.feitos:
-                self._anotar({chave})
-                try:
-                    self.publicar_semana()
-                except Exception:
-                    log.exception("Ranking semanal falhou")
-                    self.responder(self.chat_autorizado, "⚠️ O ranking da semana falhou. Use /semana para ver.")
+            self._semanal("semana", self.semanal, self.publicar_semana,
+                          "⚠️ O ranking da semana falhou. Use /semana para ver.")
+        if self.backup and self.fazer_backup:
+            self._semanal("backup", self.backup, self.fazer_backup,
+                          "⚠️ O backup semanal falhou. Use /backup para tentar de novo.")
+
+    def _semanal(self, nome: str, quando: tuple[int, hora_do_dia], acao: Callable[[], None], erro: str) -> None:
+        agora = self.relogio()
+        dia, hora = quando
+        chave = f"{nome} {agora.date().isoformat()}"
+        if agora.weekday() == dia and agora.time() >= hora and chave not in self.feitos:
+            self._anotar({chave})
+            try:
+                acao()
+            except Exception:
+                log.exception("Tarefa semanal '%s' falhou", nome)
+                self.responder(self.chat_autorizado, erro)
+
+    def bater(self) -> None:
+        """Avisa o monitor externo que o bot está vivo (no máximo a cada `intervalo_batimento` s)."""
+        if not self.batimento or time.monotonic() - self._ultimo_batimento < self.intervalo_batimento:
+            return
+        self._ultimo_batimento = time.monotonic()
+        try:
+            self.batimento()
+        except Exception as erro:  # o monitor fora do ar não pode atrapalhar o bot
+            log.warning("Batimento não enviado: %s", erro)
 
     def enviar_resumo(self, motivo: str) -> None:
         log.info("Enviando resumo (%s)", motivo)
@@ -113,6 +138,8 @@ class Escuta:
         texto = f"Resumo todo dia às {horas}."
         if self.semanal:
             texto += f"\nRanking da semana no canal: {DIAS[self.semanal[0]]} às {_hhmm(self.semanal[1])}."
+        if self.backup:
+            texto += f"\nBackup do banco: {DIAS[self.backup[0]]} às {_hhmm(self.backup[1])}."
         return texto
 
     # ---------- comandos ----------
@@ -151,6 +178,8 @@ class Escuta:
         elif comando == "/roteiro" and self.roteiro:
             self.responder(chat, "🎬 Escrevendo o roteiro da semana…")
             self.responder(chat, self.roteiro())
+        elif comando == "/backup" and self.fazer_backup:
+            self.fazer_backup()
         elif comando == "/status":
             if self.ultimo_envio:
                 quando = self.ultimo_envio.astimezone(self.fuso).strftime("%d/%m às %Hh%M")
@@ -163,7 +192,8 @@ class Escuta:
 
     # ---------- laço ----------
     def passo(self) -> None:
-        """Uma volta do laço: confere a agenda e trata as mensagens novas."""
+        """Uma volta do laço: avisa que está vivo, confere a agenda e trata as mensagens novas."""
+        self.bater()
         self.agenda_do_momento()
 
         for atualizacao in self.buscar(self.offset):

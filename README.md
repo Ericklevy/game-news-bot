@@ -11,6 +11,10 @@ Bot que monta todo dia um **resumo de notícias e promoções de games** e envia
 
 ## Como fica a mensagem
 
+<p align="center"><img src="docs/canal.png" alt="Resumo publicado no canal do Telegram, com notícias traduzidas e promoções de PC" width="520"></p>
+
+Em texto:
+
 ```
 🕹️ Resumo gamer · 21/11/2026
 
@@ -58,6 +62,10 @@ Cada título é um link. Os ícones mostram a plataforma: 🖥️ PC, 🎮 PlayS
 - **Tradução com IA sem depender de um provedor:** a tradução usa o formato de chat da OpenAI, que OpenRouter, Groq, Gemini e SambaNova aceitam. O bot tenta na ordem do `config.yaml`, pula quem não tem chave e passa para o próximo se um falhar ou estourar o limite. As notícias do dia vão numa única chamada, então o uso cabe nos planos gratuitos.
 - **RAG leve, feito para 1 GB de RAM:** todas as notícias coletadas (cerca de 180 por execução) entram num índice de busca de texto do SQLite (FTS5). As enviadas ficam em português, e as outras com o resumo do próprio site, sem gastar IA. No `/perguntar`, o bot acha as 8 notícias mais relevantes, **lê na hora o texto das 3 primeiras matérias** e a IA responde usando só esse material, citando cada fonte pelo número. Sem banco vetorial e sem modelo rodando na máquina. O arquivo guarda seis meses.
 - **Ideias de vídeo:** o `/semana` pede para a IA agrupar as notícias da semana por assunto e ordena pelo que mais apareceu. Sem IA, uma contagem de palavras faz o mesmo papel.
+- **Busca por significado (embeddings):** as notícias enviadas também ganham um vetor (Gemini, numa chamada por resumo). O `/perguntar` junta a busca por palavras com a por significado, então "jogo da Rockstar" acha notícias de GTA 6 mesmo sem a palavra "GTA". Os vetores ficam no próprio SQLite e a similaridade é calculada em Python, sem banco vetorial.
+- **Sem repetição entre dias:** o mesmo assunto com outro título não volta por 3 dias, e a promoção do mesmo jogo, em outra loja, não volta por 7.
+- **Prévia com imagem** só na primeira notícia de cada post, para o canal ficar visual sem poluir.
+- **Operação:** backup semanal do banco enviado para o chat do dono (e sob demanda com `/backup`) e batimento para um monitor externo (Healthchecks.io), que avisa por e-mail se a máquina inteira cair.
 - **Tolerante a falhas:** se um site ou a API de promoções cair, o resumo sai com o que estiver disponível.
 - **Segredos fora do código:** o token do Telegram vem de variável de ambiente e nunca aparece nos logs, nem em mensagens de erro.
 
@@ -72,6 +80,7 @@ No modo servidor (`python -m gamebot --escutar`), o bot fica ligado e responde:
 | `/perguntar <pergunta>` | Responde com base nas notícias guardadas, citando as fontes (RAG) |
 | `/semana` | Ranking dos assuntos mais falados nos últimos 7 dias |
 | `/roteiro` | Rascunho de roteiro de vídeo com as notícias da semana, com as fontes para citar |
+| `/backup` | Manda uma cópia compactada do banco de notícias |
 | `/status` | Mostra quando foi o último resumo |
 | `/ajuda` | Lista os comandos |
 
@@ -131,16 +140,16 @@ docker compose up -d --build            # modo servidor, ligado 24 horas
 
 ```bash
 pip install -r requirements-dev.txt
+ruff check .
 pytest -q
 ```
 
-São 73 testes, que rodam sem internet, usando feeds e respostas de API salvos em `tests/fixtures`. Eles cobrem a detecção de plataforma, a junção de notícias repetidas, os filtros, as promoções (inclusive com a API fora do ar), a tradução (troca de provedor, resposta incompleta, nenhuma chave e chave fora dos logs), a formatação e a divisão da mensagem, o envio com erro o fluxo completo sem reenviar no dia seguinte e o modo servidor (comandos, chat não autorizado, horário do resumo diário e reinício sem repetir o resumo). O CI roda tudo a cada push.
+São 85 testes, que rodam sem internet, usando feeds e respostas de API salvos em `tests/fixtures`. Eles cobrem a detecção de plataforma, a junção de notícias repetidas, os filtros, as promoções (inclusive com a API fora do ar), a tradução (troca de provedor, resposta incompleta, nenhuma chave e chave fora dos logs), a formatação e a divisão da mensagem, o envio com erro o fluxo completo sem reenviar no dia seguinte e o modo servidor (comandos, chat não autorizado, horário do resumo diário e reinício sem repetir o resumo). O CI roda o linter (ruff) e todos os testes a cada push, e o servidor só se atualiza quando o CI passa.
 
 ## Próximos passos
 
 - Comandos no bot, como `/promocoes` e `/noticias zelda`, com busca no histórico.
 - Promoções de console (PlayStation Store, eShop e Xbox), que hoje não têm uma API pública simples.
-- Busca por significado (embeddings) no `/perguntar`.
 
 ## Estrutura
 

@@ -8,3 +8,12 @@ requires-python = ">=3.11"
 # Permite rodar só "pytest" na raiz: o pacote gamebot fica importável
 pythonpath = ["."]
 testpaths = ["tests"]
+
+[tool.ruff]
+line-length = 120
+target-version = "py311"
+
+[tool.ruff.lint]
+# Erros reais, imports, nomes e boas práticas simples
+select = ["E", "F", "W", "I", "B", "UP"]
+ignore = ["E501"]   # linhas longas em strings de mensagem são aceitáveis

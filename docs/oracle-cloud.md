@@ -83,6 +83,21 @@ Com o servidor ligado, o resumo diário sai dele. Para não receber dois resumos
 **Actions → Resumo diário → botão `···` → Disable workflow**.
 Se um dia o servidor sair do ar, é só reativar.
 
+## Aviso se a máquina cair (opcional, grátis)
+
+Se a máquina inteira cair, o bot não consegue avisar ninguém. Para isso existe um monitor externo:
+
+1. Crie uma conta grátis em https://healthchecks.io e clique em **Add Check**.
+2. Em **Period**, coloque **10 minutes**, e em **Grace**, **10 minutes**.
+3. Copie a URL de ping (algo como `https://hc-ping.com/...`).
+4. No `.env` da máquina, adicione `HEALTHCHECK_URL=` com essa URL e rode `sudo docker compose up -d --force-recreate`.
+
+O bot avisa o monitor a cada 5 minutos. Se ficar 20 minutos sem sinal, o Healthchecks manda um e-mail para você.
+
+## Backup
+
+Todo domingo às 3h17 o bot manda uma cópia compactada do banco (`gamebot-AAAA-MM-DD.db.gz`) para o seu chat. Para restaurar numa máquina nova, descompacte, coloque em `~/game-news-bot/data/gamebot.db` e reinicie o bot. Também dá para pedir uma cópia com `/backup`.
+
 ## Atualização automática
 
 A máquina confere o GitHub a cada 10 minutos. Quando há versão nova **e o CI dela passou**, ela baixa, reconstrói o bot e manda "🔄 Bot atualizado" no seu Telegram. Se os testes falharem, ela não atualiza.

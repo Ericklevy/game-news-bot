@@ -25,10 +25,15 @@ class Config:
     telegram_admin_id: str = ""     # quem pode dar comandos (/agora); se vazio, usa o telegram_chat_id
     banco: str = "data/gamebot.db"
     max_por_fonte: int = 3
+    dias_sem_repetir: int = 3              # não repete o mesmo assunto por N dias
+    dias_sem_repetir_promocao: int = 7     # não repete a promoção do mesmo jogo por N dias
+    previa_primeira: bool = True           # prévia com imagem da primeira notícia
     plataforma_por_feed: dict[str, str] = field(default_factory=dict)
     ia: dict = field(default_factory=dict)
     horarios_diarios: list[str] = field(default_factory=lambda: ["08:17"])
     semanal: dict = field(default_factory=lambda: {"ativo": True, "dia": "domingo", "hora": "10:17"})
+    backup: dict = field(default_factory=lambda: {"ativo": True, "dia": "domingo", "hora": "03:17"})
+    healthcheck_url: str = ""       # URL de batimento (ex.: Healthchecks.io); vazio = desligado
 
 
 def carregar(caminho: str | Path = "config.yaml") -> Config:
@@ -47,11 +52,16 @@ def carregar(caminho: str | Path = "config.yaml") -> Config:
         feeds=feeds,
         plataforma_por_feed=plataforma_por_feed,
         max_por_fonte=int(dados.get("max_por_fonte", 3)),
+        dias_sem_repetir=int(dados.get("dias_sem_repetir", 3)),
+        dias_sem_repetir_promocao=int(dados.get("dias_sem_repetir_promocao", 7)),
+        previa_primeira=bool(dados.get("previa_primeira", True)),
         ia=dados.get("ia") or {},
         # Aceita a opção antiga (hora_diaria: "08:17") e a nova (horarios_diarios: [...])
         horarios_diarios=[str(h) for h in (dados.get("horarios_diarios")
                                            or [dados.get("hora_diaria", "08:17")])],
         semanal={"ativo": True, "dia": "domingo", "hora": "10:17", **(dados.get("semanal") or {})},
+        backup={"ativo": True, "dia": "domingo", "hora": "03:17", **(dados.get("backup") or {})},
+        healthcheck_url=os.getenv("HEALTHCHECK_URL", "").strip(),
         plataformas=set(dados.get("plataformas") or []),
         incluir_gerais=bool(dados.get("incluir_gerais", True)),
         max_noticias=int(dados.get("max_noticias", 8)),

@@ -4,10 +4,10 @@ from __future__ import annotations
 import argparse
 import logging
 import sys
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 from gamebot import filtros, ia, resumo, telegram
-from gamebot.banco import Banco
+from gamebot.banco import Banco, guardar_vetores, titulos_enviados
 from gamebot.config import Config, carregar
 from gamebot.models import Noticia, Promocao
 from gamebot.sources import promocoes as fonte_promocoes
@@ -43,7 +43,7 @@ def coletar_promocoes(cfg: Config) -> list[Promocao]:
 def executar(cfg: Config, dry_run: bool = False, agora: datetime | None = None,
              avisos: list[str] | None = None) -> str:
     """Coleta, filtra, traduz e publica. Problemas encontrados vão para `avisos` (para alertar o dono)."""
-    agora = agora or datetime.now(timezone.utc)
+    agora = agora or datetime.now(UTC)
     avisos = avisos if avisos is not None else []
     banco = Banco(cfg.banco)
     try:
@@ -55,11 +55,16 @@ def executar(cfg: Config, dry_run: bool = False, agora: datetime | None = None,
             novas = banco.arquivar(para_arquivo, substituir=False)
             log.info("Arquivo de busca: %d notícias novas guardadas", novas)
 
-        # Só o que ainda não foi enviado em dias anteriores
+        # Só o que ainda não foi enviado: nem o mesmo link, nem o mesmo assunto/jogo de dias anteriores
         vistos = banco.ja_enviados([n.link for n in noticias] + [p.link for p in promocoes])
-        noticias = filtros.limitar_por_fonte([n for n in noticias if n.link not in vistos], cfg.max_por_fonte)
-        noticias = noticias[: cfg.max_noticias]
-        promocoes = [p for p in promocoes if p.link not in vistos][: cfg.max_promocoes]
+        assuntos_recentes = titulos_enviados(banco, "noticia", cfg.dias_sem_repetir)
+        jogos_recentes = {filtros.normalizar(t) for t in titulos_enviados(banco, "promocao", cfg.dias_sem_repetir_promocao)}
+        noticias = [n for n in noticias if n.link not in vistos
+                    and not any(filtros.parecidos(n.titulo, t) for t in assuntos_recentes)]
+        noticias = filtros.limitar_por_fonte(noticias, cfg.max_por_fonte)[: cfg.max_noticias]
+        promocoes = [p for p in promocoes if p.link not in vistos
+                     and filtros.normalizar(p.jogo) not in jogos_recentes][: cfg.max_promocoes]
+        titulos_originais = {n.link: n.titulo for n in noticias}   # guardados antes da tradução
 
         # Traduz só o que vai ser enviado (uma chamada de IA por dia)
         if cfg.ia.get("ativo", True):
@@ -75,10 +80,16 @@ def executar(cfg: Config, dry_run: bool = False, agora: datetime | None = None,
 
         if not cfg.telegram_token or not cfg.telegram_chat_id:
             raise SystemExit("Defina TELEGRAM_TOKEN e TELEGRAM_CHAT_ID (ou use --dry-run).")
-        telegram.enviar(cfg.telegram_token, cfg.telegram_chat_id, texto)
-        banco.marcar([(n.link, "noticia", n.titulo) for n in noticias] +
+        telegram.enviar(cfg.telegram_token, cfg.telegram_chat_id, texto,
+                        previa=noticias[0].link if noticias and cfg.previa_primeira else None)
+        # O título original (em inglês) é o que se compara com as próximas coletas
+        banco.marcar([(n.link, "noticia", titulos_originais.get(n.link, n.titulo)) for n in noticias] +
                      [(p.link, "promocao", p.jogo) for p in promocoes])
         banco.arquivar(noticias)
+        # Busca por significado: vetores só das enviadas, numa chamada só
+        vetores = ia.vetorizar([f"{n.titulo}. {n.resumo}" for n in noticias], ia.montar_embeddings(cfg.ia))
+        if vetores:
+            guardar_vetores(banco, vetores[0], list(zip([n.link for n in noticias], vetores[1], strict=True)))
         banco.limpar_antigos()
         return texto
     finally:
@@ -119,7 +130,7 @@ def escutar(cfg: Config) -> None:
     def publicar_resumo() -> str:
         avisos: list[str] = []
         texto = executar(cfg, avisos=avisos)
-        hoje = datetime.now(timezone.utc).date().isoformat()
+        hoje = datetime.now(UTC).date().isoformat()
         novos = [a for a in avisos if (hoje, a) not in alertados]
         if novos:
             alertados.update((hoje, a) for a in novos)
@@ -137,6 +148,23 @@ def escutar(cfg: Config) -> None:
     arquivo = Path(cfg.banco).with_name("agenda_feitos.txt")
     feitos = set(arquivo.read_text().split("\n")) - {""} if arquivo.exists() else set()
 
+    def fazer_backup() -> None:
+        from gamebot.banco import copia_compactada
+        conteudo = _com_banco(cfg, copia_compactada)
+        nome = f"gamebot-{datetime.now(UTC):%Y-%m-%d}.db.gz"
+        legenda = (f"💾 Backup do banco ({len(conteudo) / 1024:.0f} KB). Para restaurar: descompacte e "
+                   "coloque como data/gamebot.db no servidor.")
+        telegram.enviar_arquivo(token, dono, nome, conteudo, legenda)
+
+    backup = None
+    if cfg.backup.get("ativo"):
+        backup = (DIAS.index(str(cfg.backup.get("dia", "domingo")).lower()), _hora(cfg.backup.get("hora", "03:17")))
+
+    batimento = None
+    if cfg.healthcheck_url:
+        import requests
+        batimento = lambda: requests.get(cfg.healthcheck_url, timeout=10)  # noqa: E731
+
     try:
         telegram.definir_comandos(token, COMANDOS, chat_id=dono)
     except (telegram.ErroTelegram, Exception) as erro:  # o menu é só conveniência
@@ -153,10 +181,14 @@ def escutar(cfg: Config) -> None:
         feitos=feitos,
         salvar_feitos=lambda f: arquivo.write_text("\n".join(sorted(f))),
         destino=canal,
-        perguntar=lambda texto: _com_banco(cfg, lambda b: assistente.perguntar(texto, b, provedores)),
+        perguntar=lambda texto: _com_banco(cfg, lambda b: assistente.perguntar(
+            texto, b, provedores, embeddings=ia.montar_embeddings(cfg.ia))),
         semana=lambda: _com_banco(cfg, lambda b: assistente.semana(b, provedores)),
         promocoes=promocoes,
         roteiro=lambda: _com_banco(cfg, lambda b: assistente.roteiro(b, provedores, coletar_promocoes(cfg))),
+        backup=backup,
+        fazer_backup=fazer_backup,
+        batimento=batimento,
     ).rodar()
 
 

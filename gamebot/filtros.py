@@ -10,7 +10,7 @@ from gamebot.models import Noticia
 
 _PALAVRAS_VAZIAS = {
     "the", "a", "an", "of", "to", "in", "and", "for", "on", "is", "with", "at", "its", "it's",
-    "o", "a", "os", "as", "de", "do", "da", "dos", "das", "e", "em", "no", "na", "para", "com", "um", "uma",
+    "o", "os", "as", "de", "do", "da", "dos", "das", "e", "em", "no", "na", "para", "com", "um", "uma",
 }
 
 

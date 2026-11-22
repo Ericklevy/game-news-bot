@@ -1,4 +1,4 @@
-from datetime import date, datetime, timezone
+from datetime import UTC, date, datetime
 
 import pytest
 import responses
@@ -55,7 +55,7 @@ def test_fluxo_completo_nao_reenvia_no_dia_seguinte(fixture, monkeypatch):
         palavras_bloqueadas=["box office"], promocoes_ativas=False,
         telegram_token="T", telegram_chat_id="1", banco=":memory:",
     )
-    agora = datetime(2026, 11, 21, 12, tzinfo=timezone.utc)
+    agora = datetime(2026, 11, 21, 12, tzinfo=UTC)
 
     banco = Banco(":memory:")
     monkeypatch.setattr("gamebot.__main__.Banco", lambda _: banco)
@@ -68,7 +68,7 @@ def test_fluxo_completo_nao_reenvia_no_dia_seguinte(fixture, monkeypatch):
     assert primeiro.count("Zelda") == 1             # mesmo assunto em dois sites
 
     # O arquivo guarda TODAS as recentes (até a repetida de outro site), não só as enviadas
-    arquivadas = {l for (l,) in banco.conexao.execute("SELECT link FROM noticias")}
+    arquivadas = {link for (link,) in banco.conexao.execute("SELECT link FROM noticias")}
     assert arquivadas == {"https://a.test/zelda", "https://b.test/zelda-2", "https://a.test/ps5",
                           "https://a.test/layoffs", "https://b.test/gamepass"}
     assert primeiro.count("<a href=") < len(arquivadas)
@@ -106,7 +106,7 @@ def test_avisos_quando_fonte_e_ia_falham(fixture, monkeypatch):
     cfg = Config(feeds={"A": str(fixture("feed_a.xml")), "Quebrado": "nao é feed <<<"}, banco=":memory:",
                  promocoes_ativas=True)
     avisos = []
-    executar(cfg, dry_run=True, agora=datetime(2026, 11, 21, 12, tzinfo=timezone.utc), avisos=avisos)
+    executar(cfg, dry_run=True, agora=datetime(2026, 11, 21, 12, tzinfo=UTC), avisos=avisos)
     assert "A fonte Quebrado não respondeu ou veio vazia." in avisos
     assert any("promoções" in a for a in avisos)
     assert any("tradução falhou" in a for a in avisos)

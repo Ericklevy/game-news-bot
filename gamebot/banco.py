@@ -4,7 +4,7 @@ from __future__ import annotations
 import sqlite3
 from collections.abc import Iterable
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 
 _ESQUEMA = """
@@ -25,6 +25,13 @@ CREATE TABLE IF NOT EXISTS noticias (
     publicada_em TEXT,
     traduzida   INTEGER NOT NULL DEFAULT 0,
     salva_em    TEXT NOT NULL
+);
+
+-- Vetores (embeddings) das notícias enviadas, para a busca por significado
+CREATE TABLE IF NOT EXISTS vetores (
+    link   TEXT PRIMARY KEY,
+    modelo TEXT NOT NULL,
+    vetor  BLOB NOT NULL
 );
 
 -- Índice de busca de texto sobre o arquivo (título e resumo em português)
@@ -61,7 +68,7 @@ class Banco:
 
     def marcar(self, itens: Iterable[tuple[str, str, str]]) -> None:
         """Registra itens (link, tipo, título) como enviados."""
-        agora = datetime.now(timezone.utc).isoformat(timespec="seconds")
+        agora = datetime.now(UTC).isoformat(timespec="seconds")
         with self.conexao:
             self.conexao.executemany(
                 "INSERT OR IGNORE INTO enviados (link, tipo, titulo, enviado_em) VALUES (?, ?, ?, ?)",
@@ -74,7 +81,7 @@ class Banco:
         substituir=True  -> sobrescreve (usado para gravar a versão traduzida das enviadas);
         substituir=False -> só acrescenta as novas (usado para o arquivo bruto, sem apagar traduções).
         """
-        agora = datetime.now(timezone.utc).isoformat(timespec="seconds")
+        agora = datetime.now(UTC).isoformat(timespec="seconds")
         modo = "INSERT OR REPLACE" if substituir else "INSERT OR IGNORE"
         gravadas = 0
         with self.conexao:
@@ -103,6 +110,7 @@ class Banco:
                 "(SELECT link FROM noticias WHERE salva_em < datetime('now', ?))", (f"-{dias_arquivo} days",)
             )
             self.conexao.execute("DELETE FROM noticias WHERE salva_em < datetime('now', ?)", (f"-{dias_arquivo} days",))
+            self.conexao.execute("DELETE FROM vetores WHERE link NOT IN (SELECT link FROM noticias)")
 
     def fechar(self) -> None:
         self.conexao.close()
@@ -126,7 +134,7 @@ def _linhas(cur) -> list[Registro]:
 _COLUNAS = "n.link, n.titulo, n.resumo, n.fonte, n.plataformas, COALESCE(n.publicada_em, n.salva_em)"
 
 
-def buscar(banco: "Banco", consulta_fts: str, dias: int = 30, limite: int = 8) -> list[Registro]:
+def buscar(banco: Banco, consulta_fts: str, dias: int = 30, limite: int = 8) -> list[Registro]:
     """Busca de texto (FTS5, ordenada por relevância) nas notícias dos últimos `dias`."""
     if not consulta_fts:
         return []
@@ -139,10 +147,50 @@ def buscar(banco: "Banco", consulta_fts: str, dias: int = 30, limite: int = 8) -
     return _linhas(cur)
 
 
-def recentes(banco: "Banco", dias: int = 7, limite: int = 200) -> list[Registro]:
+def recentes(banco: Banco, dias: int = 7, limite: int = 200) -> list[Registro]:
     cur = banco.conexao.execute(
         f"SELECT {_COLUNAS} FROM noticias n WHERE n.salva_em >= datetime('now', ?) "
         "ORDER BY COALESCE(n.publicada_em, n.salva_em) DESC LIMIT ?",
         (f"-{dias} days", limite),
     )
     return _linhas(cur)
+
+
+def copia_compactada(banco: Banco) -> bytes:
+    """Cópia consistente do banco (API de backup do SQLite), compactada com gzip."""
+    import gzip
+    import tempfile
+    from pathlib import Path
+    with tempfile.TemporaryDirectory() as pasta:
+        destino = Path(pasta) / "gamebot.db"
+        alvo = sqlite3.connect(destino)
+        with alvo:
+            banco.conexao.backup(alvo)
+        alvo.close()
+        return gzip.compress(destino.read_bytes())
+
+
+def titulos_enviados(banco: Banco, tipo: str, dias: int) -> list[str]:
+    cur = banco.conexao.execute(
+        "SELECT titulo FROM enviados WHERE tipo = ? AND enviado_em >= datetime('now', ?)", (tipo, f"-{dias} days"))
+    return [t for (t,) in cur]
+
+
+def guardar_vetores(banco: Banco, modelo: str, itens: list[tuple[str, list[float]]]) -> None:
+    from array import array
+    with banco.conexao:
+        banco.conexao.executemany("INSERT OR REPLACE INTO vetores VALUES (?, ?, ?)",
+                                  [(link, modelo, array("f", v).tobytes()) for link, v in itens])
+
+
+def vetores_recentes(banco: Banco, modelo: str, dias: int = 30) -> list[tuple[Registro, list[float]]]:
+    from array import array
+    cur = banco.conexao.execute(
+        f"SELECT {_COLUNAS}, v.vetor FROM vetores v JOIN noticias n ON n.link = v.link "
+        "WHERE v.modelo = ? AND n.salva_em >= datetime('now', ?)", (modelo, f"-{dias} days"))
+    resultado = []
+    for *colunas, blob in cur:
+        vetor = array("f")
+        vetor.frombytes(blob)
+        resultado.append((Registro(*colunas), vetor.tolist()))
+    return resultado

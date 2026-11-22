@@ -6,7 +6,6 @@ RAG aqui é simples e leve, pensado para uma máquina de 1 GB:
 """
 from __future__ import annotations
 
-import json
 import logging
 import re
 from collections import Counter
@@ -14,7 +13,7 @@ from datetime import datetime
 from html import escape
 
 from gamebot import ia
-from gamebot.banco import Banco, Registro, buscar, recentes
+from gamebot.banco import Banco, Registro, buscar, recentes, vetores_recentes
 from gamebot.filtros import normalizar
 from gamebot.sources import pagina
 
@@ -79,13 +78,33 @@ def _links(registros: list[Registro], numeros: list[int] | None = None) -> str:
     )
 
 
+def busca_hibrida(pergunta: str, banco: Banco, embeddings: list[ia.Provedor] | None,
+                  dias: int = 30, limite: int = 8) -> list[Registro]:
+    """Junta a busca por palavras (FTS5) com a busca por significado (embeddings), alternando os resultados."""
+    por_palavra = buscar(banco, consulta_fts(pergunta), dias=dias, limite=limite)
+    por_significado: list[Registro] = []
+    gerado = ia.vetorizar([pergunta], embeddings) if embeddings else None
+    if gerado:
+        modelo, (vetor,) = gerado
+        candidatos = vetores_recentes(banco, modelo, dias)
+        notas = sorted(((ia.cosseno(vetor, v), r) for r, v in candidatos), key=lambda x: x[0], reverse=True)
+        por_significado = [r for nota, r in notas[:limite] if nota >= 0.5]
+    juntos, vistos = [], set()
+    for par in zip(por_palavra + [None] * limite, por_significado + [None] * limite, strict=False):
+        for r in par:
+            if r and r.link not in vistos:
+                vistos.add(r.link)
+                juntos.append(r)
+    return juntos[:limite]
+
+
 def perguntar(pergunta: str, banco: Banco, provedores: list[ia.Provedor], dias: int = 30,
-              ler_materia=None, materias: int = 3) -> str:
+              ler_materia=None, materias: int = 3, embeddings: list[ia.Provedor] | None = None) -> str:
     pergunta = pergunta.strip()
     if not pergunta:
         return "Escreva a pergunta depois do comando. Exemplo:\n/perguntar o que saiu de GTA 6 essa semana?"
 
-    registros = buscar(banco, consulta_fts(pergunta), dias=dias, limite=8)
+    registros = busca_hibrida(pergunta, banco, embeddings, dias=dias)
     if not registros:
         return (f"🔎 Não achei nada sobre isso nas notícias dos últimos {dias} dias.\n"
                 "Tente outras palavras, como o nome do jogo ou da empresa.")

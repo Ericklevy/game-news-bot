@@ -204,3 +204,55 @@ def completar(provedores: list[Provedor], sistema: str, usuario: str,
         log.info("IA: resposta de %s (%s)", provedor.nome, provedor.modelo)
         return texto
     raise FalhaIA("todos os provedores falharam")
+
+
+# ---------- embeddings (busca por significado) ----------
+
+EMBEDDINGS_PADRAO = {"gemini": "gemini-embedding-001"}
+
+
+def montar_embeddings(config: dict | None) -> list[Provedor]:
+    """Provedores de embeddings, da seção ia.embeddings do config.yaml. Vazio = desligado."""
+    emb = (config or {}).get("embeddings") or {}
+    if not emb.get("ativo", False):
+        return []
+    provedores = []
+    for nome in emb.get("provedores", ["gemini"]):
+        base = PADRAO.get(nome)
+        modelo = (emb.get("modelos") or {}).get(nome) or EMBEDDINGS_PADRAO.get(nome)
+        if not base or not modelo:
+            log.warning("Embeddings: provedor %s sem modelo configurado", nome)
+            continue
+        provedores.append(Provedor(nome, base.url.replace("chat/completions", "embeddings"), modelo, base.variavel_chave))
+    return provedores
+
+
+def vetorizar(textos: list[str], provedores: list[Provedor], sessao: requests.Session | None = None,
+              timeout: int = 60) -> tuple[str, list[list[float]]] | None:
+    """Gera um vetor por texto (formato /embeddings da OpenAI). Devolve (modelo, vetores) ou None."""
+    disponiveis = [p for p in provedores if p.chave]
+    if not textos or not disponiveis:
+        return None
+    sessao = sessao or requests.Session()
+    for p in disponiveis:
+        try:
+            resp = sessao.post(p.url, timeout=timeout,
+                               headers={"Authorization": f"Bearer {p.chave}", "Content-Type": "application/json"},
+                               json={"model": p.modelo, "input": textos})
+            if resp.status_code != 200:
+                raise FalhaIA(f"HTTP {resp.status_code}: {resp.text[:160]}")
+            dados = sorted(resp.json()["data"], key=lambda d: d.get("index", 0))
+            vetores = [d["embedding"] for d in dados]
+            if len(vetores) != len(textos):
+                raise FalhaIA("quantidade de vetores diferente da de textos")
+        except (FalhaIA, requests.RequestException, KeyError, TypeError, ValueError) as erro:
+            log.warning("Embeddings %s falharam: %s", p.nome, erro)
+            continue
+        return f"{p.nome}/{p.modelo}", vetores
+    return None
+
+
+def cosseno(a: list[float], b: list[float]) -> float:
+    num = sum(x * y for x, y in zip(a, b, strict=False))
+    den = (sum(x * x for x in a) ** 0.5) * (sum(y * y for y in b) ** 0.5)
+    return num / den if den else 0.0

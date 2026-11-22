@@ -1,4 +1,4 @@
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from gamebot import filtros
 from gamebot.models import Noticia
@@ -11,7 +11,7 @@ def test_le_feed_limpa_html_e_detecta_plataforma(fixture):
     assert zelda.titulo == "New Zelda game announced for Nintendo Switch 2"
     assert zelda.resumo == "Nintendo revealed the next Zelda today."
     assert zelda.plataformas == {"Nintendo"}
-    assert zelda.publicada_em == datetime(2026, 11, 21, 10, tzinfo=timezone.utc)
+    assert zelda.publicada_em == datetime(2026, 11, 21, 10, tzinfo=UTC)
 
 
 def test_feed_quebrado_vira_lista_vazia():

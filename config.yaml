@@ -9,6 +9,12 @@ incluir_gerais: true
 # Cada horário gasta 1 chamada de IA. No GitHub Actions quem manda é o cron do workflow.
 horarios_diarios: ["08:17", "13:17", "19:17"]
 
+# Cópia do banco de notícias enviada para o seu chat (sem IA). Também dá para pedir com /backup.
+backup:
+  ativo: true
+  dia: domingo
+  hora: "03:17"
+
 # Ranking da semana publicado no canal (1 chamada de IA por semana)
 semanal:
   ativo: true
@@ -19,6 +25,9 @@ semanal:
 max_noticias: 8
 max_promocoes: 6
 max_por_fonte: 3      # para o resumo não virar o feed de um site só
+dias_sem_repetir: 3            # não repete o mesmo assunto (mesmo com outro título) por 3 dias
+dias_sem_repetir_promocao: 7   # não repete a promoção do mesmo jogo por 7 dias
+previa_primeira: true          # mostra a imagem da primeira notícia no topo do post
 
 # Só notícias publicadas nas últimas X horas
 janela_horas: 30
@@ -54,6 +63,13 @@ promocoes:
 ia:
   ativo: true
   provedores: [openrouter, groq, gemini, sambanova]
+  # Busca por significado no /perguntar (embeddings). Usa a GEMINI_API_KEY.
+  # Gasta 1 chamada por resumo e 1 por pergunta. Se falhar, a busca por palavras continua.
+  embeddings:
+    ativo: true
+    provedores: [gemini]
+    # modelos:
+    #   gemini: gemini-embedding-001
   # Para trocar o modelo de um provedor (os modelos grátis mudam com o tempo):
   # modelos:
   #   groq: llama-3.1-8b-instant
