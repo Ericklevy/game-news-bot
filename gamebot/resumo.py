@@ -22,9 +22,13 @@ def _brl(valor_brl: float) -> str:
     return "R$ " + f"{valor_brl:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
 
 
+def _preco(p: Promocao, valor: float) -> str:
+    return _brl(valor) if p.moeda == "BRL" else _usd(valor)
+
+
 def _extras(p: Promocao) -> str:
     itens = []
-    if p.cotacao_brl and not p.gratis:
+    if p.cotacao_brl and not p.gratis and p.moeda == "USD":
         itens.append(f"≈ {_brl(p.preco_promocional * p.cotacao_brl)}")
     if p.menor_da_historia:
         itens.append("🔥 menor preço da história")
@@ -59,7 +63,7 @@ def montar(noticias: list[Noticia], promocoes: list[Promocao], dia: date | None 
     if promocoes:
         partes.append("<b>💸 Promoções no PC</b>")
         for p in promocoes:
-            preco = "<b>GRÁTIS</b>" if p.gratis else f"<b>{_usd(p.preco_promocional)}</b> <s>{_usd(p.preco_normal)}</s>"
+            preco = "<b>GRÁTIS</b>" if p.gratis else f"<b>{_preco(p, p.preco_promocional)}</b> <s>{_preco(p, p.preco_normal)}</s>"
             nota = f" · Metacritic {p.nota_metacritic}" if p.nota_metacritic else ""
             partes.append(
                 f"<a href=\"{escape(p.link, quote=True)}\">{escape(p.jogo)}</a>{'' if p.gratis else f' · -{p.desconto}%'}\n"

@@ -72,13 +72,14 @@ def enriquecer(banco: Banco, promocoes: list[Promocao], avisos: list[str] | None
     taxa = cotacao(cache, circuito, avisos)
     menores = menores_precos(cache, circuito, ids, avisos)
     anteriores = precos_anteriores(banco, ids)
+    em_dolar = [p for p in promocoes if p.moeda == "USD"]
     if registrar:
-        registrar_precos(banco, promocoes)
+        registrar_precos(banco, em_dolar)
     saida = []
     for p in promocoes:
         anterior = anteriores.get(p.jogo_id)
         saida.append(replace(
-            p, cotacao_brl=taxa, menor_preco=menores.get(p.jogo_id),
+            p, cotacao_brl=taxa if p.moeda == "USD" else None, menor_preco=menores.get(p.jogo_id),
             preco_anterior=anterior if anterior and anterior > p.preco_promocional + 0.01 else None))
     return saida
 

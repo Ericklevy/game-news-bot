@@ -26,10 +26,11 @@ def test_busca_specials_em_dolar_com_desconto_minimo():
     assert [p.jogo for p in resultado] == ["Hades"]
     hades = resultado[0]
     assert hades.loja == "Steam"
+    assert hades.moeda == "BRL"
     assert hades.preco_normal == 24.99 and hades.preco_promocional == 6.24
     assert hades.desconto == 75
     assert hades.link == "https://store.steampowered.com/app/1145360"
-    assert responses.calls[0].request.params["cc"] == "us"
+    assert responses.calls[0].request.params["cc"] == "br"
 
 
 @responses.activate
@@ -60,3 +61,13 @@ def test_jogo_repetido_fica_com_a_fonte_principal():
 
     assert [p.jogo for p in juntas] == ["Hades", "Celeste"]
     assert juntas[0].link.startswith("https://www.cheapshark.com")
+
+
+def test_preco_em_reais_sai_com_rs_e_sem_conversao():
+    from gamebot import resumo
+
+    p = Promocao(jogo="Hades", loja="Steam", preco_normal=24.99, preco_promocional=6.24,
+                 link="x", moeda="BRL", cotacao_brl=5.5)
+
+    assert resumo._preco(p, p.preco_promocional) == "R$ 6,24"
+    assert "≈" not in resumo._extras(p)

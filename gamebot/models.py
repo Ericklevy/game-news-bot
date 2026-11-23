@@ -29,6 +29,7 @@ class Promocao:
     menor_preco: float | None = None     # menor preço da história (CheapShark)
     preco_anterior: float | None = None  # maior preço que o bot viu nos últimos 30 dias
     cotacao_brl: float | None = None     # dólar em reais, para mostrar o preço aproximado
+    moeda: str = "USD"                   # moeda dos preços: USD (CheapShark) ou BRL (loja brasileira da Steam)
 
     @property
     def menor_da_historia(self) -> bool:

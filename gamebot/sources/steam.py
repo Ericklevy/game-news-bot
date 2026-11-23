@@ -1,7 +1,6 @@
 """Promoções direto da loja Steam, pelo endpoint público featuredcategories (sem chave).
 
-Os preços vêm em dólar (cc=us), a mesma moeda da CheapShark, para que a conversão
-para reais e a formatação do resumo funcionem igual nas duas fontes.
+Usa a loja brasileira (cc=br): os preços saem em reais, como os que o comprador vê no Brasil.
 
 Esse endpoint não é documentado oficialmente pela Valve, então pode mudar sem aviso.
 Se falhar, o bot segue só com as promoções da CheapShark.
@@ -24,10 +23,10 @@ HEADERS = {"User-Agent": "game-news-bot/1.0 (+https://github.com/Ericklevy/game-
 
 
 def buscar(desconto_minimo: int = 50, sessao: requests.Session | None = None) -> list[Promocao]:
-    """Promoções da seção 'specials' da Steam, com desconto mínimo. Falha vira lista vazia."""
+    """Promoções da seção 'specials' da Steam (preços em reais), com desconto mínimo. Falha vira lista vazia."""
     sessao = sessao or requests.Session()
     try:
-        resp = sessao.get(API, params={"cc": "us", "l": "english"}, headers=HEADERS, timeout=TIMEOUT)
+        resp = sessao.get(API, params={"cc": "br", "l": "portuguese"}, headers=HEADERS, timeout=TIMEOUT)
         resp.raise_for_status()
         itens = (resp.json().get("specials") or {}).get("items") or []
     except (requests.RequestException, ValueError, AttributeError) as erro:
@@ -45,6 +44,7 @@ def buscar(desconto_minimo: int = 50, sessao: requests.Session | None = None) ->
                 preco_normal=int(item["original_price"]) / 100,      # a Steam informa em centavos
                 preco_promocional=int(item["final_price"]) / 100,
                 link=LINK_LOJA.format(item["id"]),
+                moeda="BRL",
             )
         except (KeyError, TypeError, ValueError):
             continue
