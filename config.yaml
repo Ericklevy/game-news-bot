@@ -75,6 +75,7 @@ ia:
   modelos:
     groq: openai/gpt-oss-120b
     gemini: gemini-3.5-flash
+    sambanova: gpt-oss-120b
 
 # Fontes de notícias (RSS). Pode ser só a URL ou {url, plataforma}.
 # A plataforma vale para sites de uma plataforma só quando a notícia não cita nenhuma.
