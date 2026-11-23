@@ -86,3 +86,10 @@ feeds:
   PC Gamer:
     url: https://www.pcgamer.com/feeds.xml
     plataforma: PC
+  Kotaku: https://kotaku.com/rss
+  Polygon: https://www.polygon.com/rss/index.xml
+  GamesRadar: https://www.gamesradar.com/rss/
+  Rock Paper Shotgun: https://www.rockpapershotgun.com/feed
+  Adrenaline: https://www.adrenaline.com.br/feed/
+  Voxel: https://www.tecmundo.com.br/voxel/feed
+  IGN Brasil: https://br.ign.com/feed.xml
