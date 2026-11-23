@@ -11,6 +11,7 @@ from gamebot.banco import Banco, guardar_vetores, titulos_enviados
 from gamebot.config import Config, carregar
 from gamebot.models import Noticia, Promocao
 from gamebot.sources import promocoes as fonte_promocoes
+from gamebot.sources import steam as fonte_steam
 from gamebot.sources.rss import ler_feed
 
 log = logging.getLogger("gamebot")
@@ -37,7 +38,10 @@ def coletar_noticias(cfg: Config, agora: datetime,
 def coletar_promocoes(cfg: Config) -> list[Promocao]:
     if not cfg.promocoes_ativas or "PC" not in cfg.plataformas:
         return []
-    return fonte_promocoes.buscar(cfg.desconto_minimo, cfg.nota_minima)
+    principais = fonte_promocoes.buscar(cfg.desconto_minimo, cfg.nota_minima)
+    # A Steam entra depois: o que já veio pela CheapShark não se repete
+    extras = fonte_steam.buscar(cfg.desconto_minimo)
+    return fonte_steam.sem_duplicadas(principais, extras)
 
 
 def executar(cfg: Config, dry_run: bool = False, agora: datetime | None = None,
